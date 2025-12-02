@@ -1,0 +1,41 @@
+{
+  "name": "mgm-packing-assistant",
+  "version": "1.0.0",
+  "description": "Sausage & Burger Packing Assistant - Convert customer orders into required packing units",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @mgm/api",
+    "dev:web": "npm run dev -w @mgm/web",
+    "dev:mobile": "npm run start -w @mgm/mobile",
+    "build:api": "npm run build -w @mgm/api",
+    "build:web": "npm run build -w @mgm/web",
+    "build:shared": "npm run build -w @mgm/shared",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:migrate": "npm run migrate -w @mgm/api",
+    "db:seed": "npm run seed -w @mgm/api",
+    "clean": "rimraf node_modules packages/*/node_modules apps/*/node_modules"
+  },
+  "keywords": [
+    "packing",
+    "sausage",
+    "burger",
+    "manufacturing",
+    "order-management"
+  ],
+  "author": "MGM Packing",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
+
