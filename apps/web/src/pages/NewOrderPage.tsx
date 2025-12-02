@@ -226,7 +226,6 @@ export function NewOrderPage() {
       <div className="space-y-3 mb-6">
         <h2 className="font-semibold text-gray-700">📦 Order Items</h2>
         {activeProducts.map(product => {
-          const productConfig = ALL_PRODUCTS.find(p => p.id === product.productId);
           const result = results.find(r => r.productId === product.productId);
           const isLMC = customerId === 'lmc' || customer?.name?.toLowerCase() === 'lmc';
           // Show tub size toggle for LMC Veal and Meatballs
