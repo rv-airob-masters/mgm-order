@@ -222,24 +222,24 @@ export const useAppStore = create<AppStore>()(
     (set, get) => ({
       // Customers
       customers: INITIAL_CUSTOMERS,
-      addCustomer: (customer) => set((state) => ({
+      addCustomer: (customer: Customer) => set((state: AppStore) => ({
         customers: [customer, ...state.customers]
       })),
-      
+
       // Orders
       orders: [],
-      addOrder: (order) => set((state) => ({
+      addOrder: (order: Order) => set((state: AppStore) => ({
         orders: [order, ...state.orders]
       })),
-      updateOrderStatus: (orderId, status) => set((state) => ({
-        orders: state.orders.map(order =>
+      updateOrderStatus: (orderId: string, status: OrderStatus) => set((state: AppStore) => ({
+        orders: state.orders.map((order: Order) =>
           order.id === orderId ? { ...order, status } : order
         )
       })),
       getNextOrderNumber: () => {
         const year = new Date().getFullYear();
         const orders = get().orders;
-        const yearOrders = orders.filter(o => o.orderNumber.includes(`${year}`));
+        const yearOrders = orders.filter((o: Order) => o.orderNumber.includes(`${year}`));
         const nextNum = yearOrders.length + 1;
         return `ORD-${year}-${String(nextNum).padStart(4, '0')}`;
       },
