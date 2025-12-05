@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useAppStore, type Order } from '../store';
+import { useNavigate } from 'react-router-dom';
+import { useAppStore, type Order, CUSTOMER_RULES } from '../store';
 
 const statusColors: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
@@ -11,10 +12,14 @@ const statusColors: Record<string, string> = {
 type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
 
 export function OrdersPage() {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const { orders, updateOrderStatus } = useAppStore();
+  const { orders, updateOrderStatus, customers } = useAppStore();
+
+  // Calculate label count for an order (1 label per tub + 1 label per box)
+  const getLabelCount = (order: Order) => order.totalTubs + order.totalBoxes;
 
   // Get unique dates from orders for the date picker
   const uniqueDates = useMemo(() => {
@@ -101,6 +106,7 @@ export function OrdersPage() {
               <span>📅 {order.orderDate}</span>
               <div className="flex gap-4">
                 <span>📦 {order.totalBoxes} boxes</span>
+                <span>🏷️ {getLabelCount(order)} labels</span>
                 <span>⚖️ {order.totalWeight} kg</span>
               </div>
             </div>
@@ -164,10 +170,10 @@ export function OrdersPage() {
             {/* Order Summary */}
             <div className="bg-primary-50 rounded-lg p-4 mb-4">
               <h3 className="font-semibold text-gray-700 mb-3">Order Summary</h3>
-              <div className="grid grid-cols-4 gap-4 text-center">
+              <div className="grid grid-cols-5 gap-3 text-center">
                 <div>
                   <div className="text-xl font-bold text-gray-800">{selectedOrder.totalWeight}</div>
-                  <div className="text-xs text-gray-600">kg Total</div>
+                  <div className="text-xs text-gray-600">kg</div>
                 </div>
                 <div>
                   <div className="text-xl font-bold text-gray-800">{selectedOrder.totalTrays}</div>
@@ -180,6 +186,10 @@ export function OrdersPage() {
                 <div>
                   <div className="text-xl font-bold text-primary-600">{selectedOrder.totalBoxes}</div>
                   <div className="text-xs text-gray-600">Boxes</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-purple-600">{getLabelCount(selectedOrder)}</div>
+                  <div className="text-xs text-gray-600">Labels</div>
                 </div>
               </div>
             </div>
@@ -235,12 +245,27 @@ export function OrdersPage() {
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="btn-primary w-full"
-            >
-              Close
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  // Find the customer to pass state
+                  const customer = customers.find(c => c.id === selectedOrder.customerId);
+                  setSelectedOrder(null);
+                  navigate(`/orders/edit/${selectedOrder.id}`, {
+                    state: { customer, order: selectedOrder }
+                  });
+                }}
+                className="btn-secondary flex-1"
+              >
+                ✏️ Edit Order
+              </button>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="btn-primary flex-1"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

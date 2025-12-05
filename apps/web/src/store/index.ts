@@ -174,7 +174,9 @@ interface AppStore {
   // Orders
   orders: Order[];
   addOrder: (order: Order) => void;
+  updateOrder: (order: Order) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  deleteOrder: (orderId: string) => void;
   getNextOrderNumber: () => string;
 }
 
@@ -248,10 +250,18 @@ export const useAppStore = create<AppStore>()(
       addOrder: (order: Order) => set((state: AppStore) => ({
         orders: [order, ...state.orders]
       })),
+      updateOrder: (updatedOrder: Order) => set((state: AppStore) => ({
+        orders: state.orders.map((order: Order) =>
+          order.id === updatedOrder.id ? updatedOrder : order
+        )
+      })),
       updateOrderStatus: (orderId: string, status: OrderStatus) => set((state: AppStore) => ({
         orders: state.orders.map((order: Order) =>
           order.id === orderId ? { ...order, status } : order
         )
+      })),
+      deleteOrder: (orderId: string) => set((state: AppStore) => ({
+        orders: state.orders.filter((order: Order) => order.id !== orderId)
       })),
       getNextOrderNumber: () => {
         const year = new Date().getFullYear();

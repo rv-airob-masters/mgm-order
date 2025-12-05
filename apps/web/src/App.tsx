@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { CustomersPage } from './pages/CustomersPage';
 import { NewOrderPage } from './pages/NewOrderPage';
+import { EditOrderPage } from './pages/EditOrderPage';
 import { OrdersPage } from './pages/OrdersPage';
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/orders/new/:customerId" element={<NewOrderPage />} />
+        <Route path="/orders/edit/:orderId" element={<EditOrderPage />} />
         <Route path="/orders" element={<OrdersPage />} />
       </Routes>
     </Layout>
