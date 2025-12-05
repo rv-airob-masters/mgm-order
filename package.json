@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "build": "npm run build -w @mgm/web",
     "dev:api": "npm run dev -w @mgm/api",
     "dev:web": "npm run dev -w @mgm/web",
     "dev:mobile": "npm run start -w @mgm/mobile",

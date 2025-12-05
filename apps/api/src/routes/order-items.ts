@@ -2,11 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../lib/supabase';
 import { ApiError } from '../middleware/errorHandler';
-import { 
-  calculateOrderItem, 
-  calculateOrderTotals,
-  buildPackagingConfig
-} from '@mgm/shared';
+import { calculateOrderItem } from '../lib/calculate';
 
 const router = Router();
 
