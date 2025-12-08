@@ -18,7 +18,8 @@ export function HomePage() {
       totalTrays: todayOrders.reduce((sum, o) => sum + o.totalTrays, 0),
       totalTubs: todayOrders.reduce((sum, o) => sum + o.totalTubs, 0),
       totalBoxes: todayOrders.reduce((sum, o) => sum + o.totalBoxes, 0),
-      totalLabels: todayOrders.reduce((sum, o) => sum + o.totalTubs + o.totalBoxes, 0),
+      // Labels = trays + tubs + boxes (1 label per each)
+      totalLabels: todayOrders.reduce((sum, o) => sum + o.totalTrays + o.totalTubs + o.totalBoxes, 0),
       confirmedCount: todayOrders.filter(o => o.status === 'confirmed').length,
       completedCount: todayOrders.filter(o => o.status === 'completed').length,
     };
@@ -66,25 +67,25 @@ export function HomePage() {
             </div>
 
             {/* Packing totals row */}
-            <div className="grid grid-cols-5 gap-3">
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <div className="text-2xl font-bold text-gray-800">{todayStats.totalWeight.toFixed(1)}</div>
-                <div className="text-xs text-gray-600">kg Total</div>
+            <div className="grid grid-cols-5 gap-2">
+              <div className="bg-white rounded-lg p-2 text-center shadow-sm overflow-hidden">
+                <div className="text-lg sm:text-xl font-bold text-gray-800 truncate">{todayStats.totalWeight.toFixed(1)}</div>
+                <div className="text-xs text-gray-600">kg</div>
               </div>
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <div className="text-2xl font-bold text-amber-600">{todayStats.totalTrays}</div>
+              <div className="bg-white rounded-lg p-2 text-center shadow-sm overflow-hidden">
+                <div className="text-lg sm:text-xl font-bold text-amber-600 truncate">{todayStats.totalTrays}</div>
                 <div className="text-xs text-gray-600">Trays</div>
               </div>
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <div className="text-2xl font-bold text-blue-600">{todayStats.totalTubs}</div>
+              <div className="bg-white rounded-lg p-2 text-center shadow-sm overflow-hidden">
+                <div className="text-lg sm:text-xl font-bold text-blue-600 truncate">{todayStats.totalTubs}</div>
                 <div className="text-xs text-gray-600">Tubs</div>
               </div>
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <div className="text-2xl font-bold text-primary-600">{todayStats.totalBoxes}</div>
+              <div className="bg-white rounded-lg p-2 text-center shadow-sm overflow-hidden">
+                <div className="text-lg sm:text-xl font-bold text-primary-600 truncate">{todayStats.totalBoxes}</div>
                 <div className="text-xs text-gray-600">Boxes</div>
               </div>
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <div className="text-2xl font-bold text-purple-600">{todayStats.totalLabels}</div>
+              <div className="bg-white rounded-lg p-2 text-center shadow-sm overflow-hidden">
+                <div className="text-lg sm:text-xl font-bold text-purple-600 truncate">{todayStats.totalLabels}</div>
                 <div className="text-xs text-gray-600">Labels</div>
               </div>
             </div>

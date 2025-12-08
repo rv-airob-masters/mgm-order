@@ -41,6 +41,8 @@ export function NewOrderPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   // State for tub sizes (for LMC veal)
   const [tubSizes, setTubSizes] = useState<Record<string, '2kg' | '5kg'>>({});
+  // State for pack type override per product
+  const [packTypeOverrides, setPackTypeOverrides] = useState<Record<string, 'tray' | 'tub'>>({});
   // State for adhoc products added
   const [adhocProducts, setAdhocProducts] = useState<CustomerProduct[]>([]);
   // State for showing adhoc product picker
@@ -48,6 +50,10 @@ export function NewOrderPage() {
   // Modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedOrderNumber, setSavedOrderNumber] = useState('');
+  // Order date (default to today)
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  // No boxes toggle (customer can override)
+  const [noBoxes, setNoBoxes] = useState(customerRules?.packingRules.noBoxes || false);
 
   // All products to show (regular + adhoc)
   const activeProducts = useMemo(() => {
@@ -70,6 +76,10 @@ export function NewOrderPage() {
     setTubSizes(prev => ({ ...prev, [productId]: size }));
   }, []);
 
+  const handlePackTypeChange = useCallback((productId: string, packType: 'tray' | 'tub') => {
+    setPackTypeOverrides(prev => ({ ...prev, [productId]: packType }));
+  }, []);
+
   const addAdhocProduct = (product: ProductConfig) => {
     const newProduct: CustomerProduct = {
       productId: product.id,
@@ -86,7 +96,8 @@ export function NewOrderPage() {
   const calculateProduct = (
     custProduct: CustomerProduct,
     qty: number,
-    tubSize?: '2kg' | '5kg'
+    tubSize?: '2kg' | '5kg',
+    packTypeOverride?: 'tray' | 'tub'
   ): CalcResult | null => {
     if (qty <= 0) return null;
 
@@ -94,9 +105,12 @@ export function NewOrderPage() {
     if (!product) return null;
 
     const rules = customerRules?.packingRules || {};
-    const packType = custProduct.packType;
+    // Use override if provided, otherwise use product default
+    const packType = packTypeOverride || custProduct.packType;
     const orderBy = custProduct.orderBy;
     const effectiveTubSize = tubSize || custProduct.tubSize || '5kg';
+    // Use the noBoxes state (which user can toggle)
+    const skipBoxes = noBoxes;
 
     let weightKg = 0;
     let trays = 0;
@@ -107,47 +121,42 @@ export function NewOrderPage() {
       // Saffron orders by trays
       trays = qty;
       weightKg = trays * product.trayWeightKg;
-      boxes = rules.noBoxes ? 0 : Math.ceil(trays / product.traysPerBox);
+      boxes = skipBoxes ? 0 : Math.ceil(trays / product.traysPerBox);
     } else if (orderBy === 'count' && product.category === 'meatball') {
       // LMC meatballs - ordered by count, 20 per tub
       const countPerTub = product.countPerTub || 20;
       tubs = Math.ceil(qty / countPerTub);
       weightKg = tubs * product.tubWeightKg5; // Approximate
       const tubsPerBox = rules.tubsPerBox5kg || 3;
-      boxes = Math.ceil(tubs / tubsPerBox);
+      boxes = skipBoxes ? 0 : Math.ceil(tubs / tubsPerBox);
     } else if (packType === 'tub') {
       // Tub packing
       const tubWeight = effectiveTubSize === '2kg' ? 2 : 5;
       tubs = Math.ceil(qty / tubWeight);
       weightKg = qty;
 
-      const tubsPerBox = effectiveTubSize === '2kg'
-        ? (rules.tubsPerBox2kg || 7)
-        : (rules.tubsPerBox5kg || 3);
-
-      // Halalnivore special rule: if remainder < 3, redistribute to have boxes of 4
-      // Example: 14 tubs → 2 boxes of 3 + 2 boxes of 4 = 14
-      // Example: 13 tubs → 3 boxes of 3 + 1 box of 4 = 13
-      // Example: 11 tubs → 1 box of 3 + 2 boxes of 4 = 11
-      if (rules.extraTubRule === 'pack4' && tubsPerBox === 3) {
-        const remainder = tubs % 3;
-        if (remainder === 0) {
-          // Perfect fit: all boxes of 3
-          boxes = tubs / 3;
-        } else if (remainder === 1 && tubs >= 4) {
-          // 1 extra: convert one box of 3 to box of 4 (loses 3, gains 4 = net +1)
-          // e.g., 10 tubs: 2 boxes of 3 + 1 box of 4
-          boxes = Math.floor((tubs - 4) / 3) + 1;
-        } else if (remainder === 2 && tubs >= 8) {
-          // 2 extra: convert two boxes of 3 to boxes of 4 (loses 6, gains 8 = net +2)
-          // e.g., 14 tubs: 2 boxes of 3 + 2 boxes of 4
-          boxes = Math.floor((tubs - 8) / 3) + 2;
-        } else {
-          // Small quantities or edge cases: standard ceiling
-          boxes = Math.ceil(tubs / 3);
-        }
+      if (skipBoxes) {
+        boxes = 0;
       } else {
-        boxes = Math.ceil(tubs / tubsPerBox);
+        const tubsPerBox = effectiveTubSize === '2kg'
+          ? (rules.tubsPerBox2kg || 7)
+          : (rules.tubsPerBox5kg || 3);
+
+        // Halalnivore special rule: if remainder < 3, redistribute to have boxes of 4
+        if (rules.extraTubRule === 'pack4' && tubsPerBox === 3) {
+          const remainder = tubs % 3;
+          if (remainder === 0) {
+            boxes = tubs / 3;
+          } else if (remainder === 1 && tubs >= 4) {
+            boxes = Math.floor((tubs - 4) / 3) + 1;
+          } else if (remainder === 2 && tubs >= 8) {
+            boxes = Math.floor((tubs - 8) / 3) + 2;
+          } else {
+            boxes = Math.ceil(tubs / 3);
+          }
+        } else {
+          boxes = Math.ceil(tubs / tubsPerBox);
+        }
       }
     } else {
       // Tray packing
@@ -162,7 +171,7 @@ export function NewOrderPage() {
       }
 
       const traysPerBox = rules.traysPerBox || product.traysPerBox;
-      boxes = rules.noBoxes ? 0 : Math.ceil(trays / traysPerBox);
+      boxes = skipBoxes ? 0 : Math.ceil(trays / traysPerBox);
     }
 
     return {
@@ -183,9 +192,10 @@ export function NewOrderPage() {
   // Calculate all results
   const results = useMemo(() => {
     return activeProducts
-      .map(p => calculateProduct(p, quantities[p.productId] || 0, tubSizes[p.productId]))
+      .map(p => calculateProduct(p, quantities[p.productId] || 0, tubSizes[p.productId], packTypeOverrides[p.productId]))
       .filter((r): r is CalcResult => r !== null);
-  }, [activeProducts, quantities, tubSizes, customerRules]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProducts, quantities, tubSizes, packTypeOverrides, customerRules, noBoxes]);
 
   const totals = useMemo(() => results.reduce((acc, r) => ({
     weight: acc.weight + r.weightKg,
@@ -203,11 +213,14 @@ export function NewOrderPage() {
     }
   };
 
+  // Get effective pack type for a product (with override)
+  const getEffectivePackType = (product: CustomerProduct) =>
+    packTypeOverrides[product.productId] || product.packType;
+
   // Format result display
   const formatResult = (result: CalcResult) => {
-    const rules = customerRules?.packingRules;
-    if (rules?.noBoxes) {
-      // Saffron - no boxes
+    if (noBoxes) {
+      // No boxes mode
       return result.packType === 'tub' ? `→ ${result.tubs} tubs` : `→ ${result.trays} trays`;
     }
     if (result.packType === 'tub') {
@@ -228,6 +241,40 @@ export function NewOrderPage() {
         </div>
       </div>
 
+      {/* Order Settings */}
+      <div className="card mb-6">
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Date Picker */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">📅 Order Date:</label>
+            <input
+              type="date"
+              value={orderDate}
+              onChange={(e) => setOrderDate(e.target.value)}
+              className="input py-1 px-2"
+            />
+          </div>
+
+          {/* No Boxes Toggle */}
+          <div className="flex items-center gap-2 ml-auto">
+            <label className="text-sm font-medium text-gray-700">📦 Use Boxes:</label>
+            <button
+              onClick={() => setNoBoxes(!noBoxes)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                noBoxes ? 'bg-gray-300' : 'bg-green-500'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  noBoxes ? 'translate-x-1' : 'translate-x-6'
+                }`}
+              />
+            </button>
+            <span className="text-xs text-gray-500">{noBoxes ? 'No' : 'Yes'}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Products */}
       <div className="space-y-3 mb-6">
         <h2 className="font-semibold text-gray-700">📦 Order Items</h2>
@@ -236,10 +283,11 @@ export function NewOrderPage() {
           const isLMC = customerId === 'lmc' || customer?.name?.toLowerCase() === 'lmc';
           // Show tub size toggle for LMC Veal and Meatballs
           const showTubSizeToggle = isLMC && (product.productId === 'veal-sausage' || product.productId === 'beef-meatballs');
+          const effectivePackType = getEffectivePackType(product);
 
           return (
             <div key={product.productId} className="card flex flex-wrap items-center gap-3">
-              <div className="flex-1 min-w-[140px]">
+              <div className="flex-1 min-w-[120px]">
                 <span className="font-medium">{product.productName}</span>
               </div>
 
@@ -257,10 +305,17 @@ export function NewOrderPage() {
                 </div>
               )}
 
-              {/* Pack type indicator */}
-              <span className={`text-xs px-2 py-1 rounded ${product.packType === 'tray' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                {product.packType.toUpperCase()}
-              </span>
+              {/* Pack type toggle (Tray/Tub) */}
+              <div className="flex gap-1">
+                <button
+                  className={`px-2 py-1 text-xs rounded font-medium ${effectivePackType === 'tray' ? 'bg-amber-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                  onClick={() => handlePackTypeChange(product.productId, 'tray')}
+                >TRAY</button>
+                <button
+                  className={`px-2 py-1 text-xs rounded font-medium ${effectivePackType === 'tub' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                  onClick={() => handlePackTypeChange(product.productId, 'tub')}
+                >TUB</button>
+              </div>
 
               {/* Quantity input */}
               <div className="flex items-center gap-2">
@@ -268,11 +323,11 @@ export function NewOrderPage() {
                   type="number"
                   step={product.orderBy === 'count' ? '1' : '0.1'}
                   placeholder="0"
-                  className="input w-24 text-right"
+                  className="input w-20 text-right"
                   value={quantities[product.productId] || ''}
                   onChange={(e) => handleQtyChange(product.productId, e.target.value)}
                 />
-                <span className="text-gray-500 text-sm w-10">{getUnitLabel(product.orderBy)}</span>
+                <span className="text-gray-500 text-sm w-8">{getUnitLabel(product.orderBy)}</span>
               </div>
 
               {/* Result */}
@@ -301,11 +356,12 @@ export function NewOrderPage() {
       {results.length > 0 && (
         <div className="card bg-primary-50 border-2 border-primary-200 mb-6">
           <h3 className="font-bold text-lg mb-4">Order Summary</h3>
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div><div className="text-2xl font-bold">{totals.weight.toFixed(1)}</div><div className="text-sm text-gray-600">kg Total</div></div>
-            <div><div className="text-2xl font-bold">{totals.trays}</div><div className="text-sm text-gray-600">Trays</div></div>
-            <div><div className="text-2xl font-bold">{totals.tubs}</div><div className="text-sm text-gray-600">Tubs</div></div>
-            <div><div className="text-2xl font-bold text-primary-600">{totals.boxes}</div><div className="text-sm text-gray-600">Boxes</div></div>
+          <div className="grid grid-cols-5 gap-3 text-center">
+            <div><div className="text-xl font-bold">{totals.weight.toFixed(1)}</div><div className="text-xs text-gray-600">kg</div></div>
+            <div><div className="text-xl font-bold">{totals.trays}</div><div className="text-xs text-gray-600">Trays</div></div>
+            <div><div className="text-xl font-bold">{totals.tubs}</div><div className="text-xs text-gray-600">Tubs</div></div>
+            <div><div className="text-xl font-bold text-primary-600">{totals.boxes}</div><div className="text-xs text-gray-600">Boxes</div></div>
+            <div><div className="text-xl font-bold text-purple-600">{totals.trays + totals.tubs + totals.boxes}</div><div className="text-xs text-gray-600">Labels</div></div>
           </div>
         </div>
       )}
@@ -337,7 +393,7 @@ export function NewOrderPage() {
               orderNumber,
               customerId: customerId || '',
               customerName: customer?.name || 'Unknown Customer',
-              orderDate: new Date().toISOString().split('T')[0],
+              orderDate: orderDate, // Use selected date
               status: 'confirmed',
               totalBoxes: totals.boxes,
               totalWeight: totals.weight,

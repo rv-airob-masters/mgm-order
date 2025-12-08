@@ -18,8 +18,8 @@ export function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const { orders, updateOrderStatus, customers } = useAppStore();
 
-  // Calculate label count for an order (1 label per tub + 1 label per box)
-  const getLabelCount = (order: Order) => order.totalTubs + order.totalBoxes;
+  // Calculate label count for an order (1 label per tray + 1 label per tub + 1 label per box)
+  const getLabelCount = (order: Order) => order.totalTrays + order.totalTubs + order.totalBoxes;
 
   // Get unique dates from orders for the date picker
   const uniqueDates = useMemo(() => {
