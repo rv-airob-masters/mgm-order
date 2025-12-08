@@ -6,10 +6,10 @@ export type SyncStatus = 'pending' | 'synced' | 'conflict';
 export interface Customer {
   id: string;
   name: string;
-  contactPhone: string | null;
-  contactEmail: string | null;
-  address: string | null;
-  specialInstructions: string | null;
+  contactPhone: string;
+  contactEmail: string;
+  address: string;
+  specialInstructions: string;
   defaultSausagePackType: PackType;
   isActive: boolean;
   syncStatus: SyncStatus;
