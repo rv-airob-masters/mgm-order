@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore, type Order, CUSTOMER_RULES } from '../store';
+import { useAppStore, type Order } from '../store';
 
 const statusColors: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
@@ -10,38 +10,94 @@ const statusColors: Record<string, string> = {
 };
 
 type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
+type GroupBy = 'date' | 'status' | 'customer';
 
 export function OrdersPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('all');
+  const [groupBy, setGroupBy] = useState<GroupBy>('date');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const { orders, updateOrderStatus, customers } = useAppStore();
 
   // Calculate label count for an order (1 label per tray + 1 label per tub + 1 label per box)
   const getLabelCount = (order: Order) => order.totalTrays + order.totalTubs + order.totalBoxes;
 
-  // Get unique dates from orders for the date picker
-  const uniqueDates = useMemo(() => {
-    const dates = [...new Set(orders.map(o => o.orderDate))];
-    return dates.sort((a, b) => b.localeCompare(a)); // Most recent first
+  // Get unique customers from orders
+  const uniqueCustomers = useMemo(() => {
+    const customerMap = new Map<string, string>();
+    orders.forEach(o => customerMap.set(o.customerId, o.customerName));
+    return Array.from(customerMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [orders]);
 
+  // Filter orders
   const filteredOrders = useMemo(() => {
-    let result = orders;
+    let result = [...orders];
 
     // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter(o => o.status === statusFilter);
     }
 
-    // Filter by date
-    if (dateFilter) {
-      result = result.filter(o => o.orderDate === dateFilter);
+    // Filter by customer
+    if (customerFilter !== 'all') {
+      result = result.filter(o => o.customerId === customerFilter);
     }
 
     return result;
-  }, [orders, statusFilter, dateFilter]);
+  }, [orders, statusFilter, customerFilter]);
+
+  // Group orders based on selected grouping
+  const groupedOrders = useMemo(() => {
+    const groups: Record<string, { label: string; orders: Order[] }> = {};
+
+    // Sort all orders by date descending first
+    const sortedOrders = [...filteredOrders].sort((a, b) => b.orderDate.localeCompare(a.orderDate));
+
+    sortedOrders.forEach(order => {
+      let groupKey: string;
+      let groupLabel: string;
+
+      switch (groupBy) {
+        case 'date':
+          groupKey = order.orderDate;
+          groupLabel = order.orderDate;
+          break;
+        case 'status':
+          groupKey = order.status;
+          groupLabel = order.status.charAt(0).toUpperCase() + order.status.slice(1);
+          break;
+        case 'customer':
+          groupKey = order.customerId;
+          groupLabel = order.customerName;
+          break;
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = { label: groupLabel, orders: [] };
+      }
+      groups[groupKey].orders.push(order);
+    });
+
+    // Convert to array and sort groups
+    let groupArray = Object.entries(groups).map(([key, value]) => ({
+      key,
+      label: value.label,
+      orders: value.orders,
+    }));
+
+    // Sort groups appropriately
+    if (groupBy === 'date') {
+      groupArray.sort((a, b) => b.key.localeCompare(a.key)); // Latest first
+    } else if (groupBy === 'status') {
+      const statusOrder = ['confirmed', 'draft', 'completed', 'cancelled'];
+      groupArray.sort((a, b) => statusOrder.indexOf(a.key) - statusOrder.indexOf(b.key));
+    } else {
+      groupArray.sort((a, b) => a.label.localeCompare(b.label)); // Alphabetical
+    }
+
+    return groupArray;
+  }, [filteredOrders, groupBy]);
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
@@ -59,21 +115,31 @@ export function OrdersPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Order History</h1>
-        <div className="flex gap-3">
-          {/* Date Filter */}
+        <div className="flex flex-wrap gap-2">
+          {/* Group By Selector */}
           <select
-            className="input w-40"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+            className="input w-36"
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as GroupBy)}
           >
-            <option value="">All Dates</option>
-            {uniqueDates.map(date => (
-              <option key={date} value={date}>{date}</option>
+            <option value="date">Group by Date</option>
+            <option value="status">Group by Status</option>
+            <option value="customer">Group by Customer</option>
+          </select>
+          {/* Customer Filter */}
+          <select
+            className="input w-36"
+            value={customerFilter}
+            onChange={(e) => setCustomerFilter(e.target.value)}
+          >
+            <option value="all">All Customers</option>
+            {uniqueCustomers.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
             ))}
           </select>
           {/* Status Filter */}
           <select
-            className="input w-40"
+            className="input w-36"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -86,29 +152,42 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {filteredOrders.map(order => (
-          <div
-            key={order.id}
-            className="card hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => handleOrderClick(order)}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="font-semibold text-gray-800">{order.orderNumber}</h3>
-                <p className="text-gray-600">{order.customerName}</p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[order.status]}`}>
-                {order.status.toUpperCase()}
-              </span>
+      <div className="space-y-6">
+        {groupedOrders.map(group => (
+          <div key={group.key}>
+            {/* Group Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-lg font-semibold text-gray-700">{group.label}</h2>
+              <span className="text-sm text-gray-400">({group.orders.length} orders)</span>
             </div>
-            <div className="flex justify-between items-center text-sm text-gray-500 mt-4 pt-4 border-t">
-              <span>📅 {order.orderDate}</span>
-              <div className="flex gap-4">
-                <span>📦 {order.totalBoxes} boxes</span>
-                <span>🏷️ {getLabelCount(order)} labels</span>
-                <span>⚖️ {order.totalWeight} kg</span>
-              </div>
+
+            {/* Orders in this group */}
+            <div className="space-y-3">
+              {group.orders.map(order => (
+                <div
+                  key={order.id}
+                  className="card hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => handleOrderClick(order)}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 className="font-semibold text-gray-800">{order.customerName}</h3>
+                      <p className="text-gray-500 text-sm">{order.orderNumber}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[order.status]}`}>
+                      {order.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-gray-500 mt-3 pt-3 border-t">
+                    <span>📅 {order.orderDate}</span>
+                    <div className="flex gap-3">
+                      <span>📦 {order.totalBoxes}</span>
+                      <span>🏷️ {getLabelCount(order)}</span>
+                      <span>⚖️ {order.totalWeight}kg</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
@@ -127,8 +206,8 @@ export function OrdersPage() {
           <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">{selectedOrder.orderNumber}</h2>
-                <p className="text-gray-600">{selectedOrder.customerName}</p>
+                <h2 className="text-xl font-bold text-gray-800">{selectedOrder.customerName}</h2>
+                <p className="text-gray-500 text-sm">{selectedOrder.orderNumber}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[selectedOrder.status]}`}>
                 {selectedOrder.status.toUpperCase()}
