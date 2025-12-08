@@ -1,50 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { fetchOrders, saveOrder, deleteOrderFromDb, checkConnection } from '../lib/supabaseSync';
+import {
+  fetchOrders, saveOrder, deleteOrderFromDb, checkConnection,
+  fetchCustomers, saveCustomer, deleteCustomerFromDb
+} from '../lib/supabaseSync';
+import type { Order, OrderItem } from '../types/order';
+import type { Customer, PackType, SyncStatus } from '../types/customer';
 
-// Inline types (previously from @mgm/shared)
-export type PackType = 'tray' | 'tub';
-export type SyncStatus = 'pending' | 'synced' | 'conflict';
-
-export interface Customer {
-  id: string;
-  name: string;
-  contactPhone: string | null;
-  contactEmail: string | null;
-  address: string | null;
-  specialInstructions: string | null;
-  defaultSausagePackType: PackType;
-  isActive: boolean;
-  syncStatus: SyncStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  quantityKg: number;
-  quantityCount?: number; // For meatballs ordered by count
-  trays: number;
-  tubs: number;
-  boxes: number;
-  packType: 'tray' | 'tub';
-  tubSize?: '2kg' | '5kg'; // For LMC veal tub size option
-}
-
-export interface Order {
-  id: string;
-  orderNumber: string;
-  customerId: string;
-  customerName: string;
-  orderDate: string;
-  status: 'draft' | 'confirmed' | 'completed' | 'cancelled';
-  totalBoxes: number;
-  totalWeight: number;
-  totalTrays: number;
-  totalTubs: number;
-  items: OrderItem[];
-}
+// Re-export types for consumers
+export type { Order, OrderItem } from '../types/order';
+export type { Customer, PackType, SyncStatus } from '../types/customer';
 
 // Customer-specific product configuration
 export interface CustomerProduct {
@@ -177,6 +142,8 @@ interface AppStore {
   // Customers
   customers: Customer[];
   addCustomer: (customer: Customer) => void;
+  updateCustomer: (customer: Customer) => void;
+  deleteCustomer: (customerId: string) => void;
 
   // Orders
   orders: Order[];
@@ -253,9 +220,47 @@ export const useAppStore = create<AppStore>()(
     (set, get) => ({
       // Customers
       customers: INITIAL_CUSTOMERS,
-      addCustomer: (customer: Customer) => set((state: AppStore) => ({
-        customers: [customer, ...state.customers]
-      })),
+      addCustomer: async (customer: Customer) => {
+        // Add to local state immediately
+        set((state: AppStore) => ({
+          customers: [customer, ...state.customers]
+        }));
+        // Sync to Supabase in background
+        const { error } = await saveCustomer(customer);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to save customer: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      updateCustomer: async (updatedCustomer: Customer) => {
+        // Update local state immediately
+        set((state: AppStore) => ({
+          customers: state.customers.map((c: Customer) =>
+            c.id === updatedCustomer.id ? updatedCustomer : c
+          )
+        }));
+        // Sync to Supabase in background
+        const { error } = await saveCustomer(updatedCustomer);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to update customer: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      deleteCustomer: async (customerId: string) => {
+        // Delete from local state immediately
+        set((state: AppStore) => ({
+          customers: state.customers.filter((c: Customer) => c.id !== customerId)
+        }));
+        // Delete from Supabase in background
+        const { error } = await deleteCustomerFromDb(customerId);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to delete customer: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
 
       // Orders
       orders: [],
@@ -346,27 +351,43 @@ export const useAppStore = create<AppStore>()(
         set({ syncState: { ...get().syncState, isSyncing: true, syncError: null } });
 
         try {
-          const { orders: remoteOrders, error } = await fetchOrders();
-          if (error) {
-            set({ syncState: { ...get().syncState, syncError: error, isSyncing: false } });
+          // Sync Orders
+          const { orders: remoteOrders, error: ordersError } = await fetchOrders();
+          if (ordersError) {
+            set({ syncState: { ...get().syncState, syncError: ordersError, isSyncing: false } });
             return;
           }
 
-          // Merge strategy: remote orders take precedence, keep local orders not in remote
+          // Merge orders: remote take precedence, upload local-only
           const localOrders = get().orders;
-          const remoteIds = new Set(remoteOrders.map(o => o.id));
-          const localOnlyOrders = localOrders.filter(o => !remoteIds.has(o.id));
-
-          // Upload local-only orders to Supabase
+          const remoteOrderIds = new Set(remoteOrders.map(o => o.id));
+          const localOnlyOrders = localOrders.filter(o => !remoteOrderIds.has(o.id));
           for (const order of localOnlyOrders) {
             await saveOrder(order);
           }
 
+          // Sync Customers
+          const { customers: remoteCustomers, error: customersError } = await fetchCustomers();
+          if (customersError) {
+            set({ syncState: { ...get().syncState, syncError: customersError, isSyncing: false } });
+            return;
+          }
+
+          // Merge customers: remote take precedence, upload local-only
+          const localCustomers = get().customers;
+          const remoteCustomerIds = new Set(remoteCustomers.map(c => c.id));
+          const localOnlyCustomers = localCustomers.filter(c => !remoteCustomerIds.has(c.id));
+          for (const customer of localOnlyCustomers) {
+            await saveCustomer(customer);
+          }
+
           // Fetch final state from Supabase
           const { orders: finalOrders } = await fetchOrders();
+          const { customers: finalCustomers } = await fetchCustomers();
 
           set({
             orders: finalOrders.length > 0 ? finalOrders : localOrders,
+            customers: finalCustomers.length > 0 ? finalCustomers : localCustomers,
             syncState: {
               isSyncing: false,
               lastSyncTime: new Date(),
