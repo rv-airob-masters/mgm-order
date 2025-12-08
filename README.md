@@ -13,6 +13,12 @@ The MGM Packing Assistant helps manufacturing units:
 
 ## ✨ Features
 
+### Dashboard (Home Page)
+- Today's order summary with live updates
+- Key metrics displayed: Total Orders, Confirmed, Completed counts
+- Totals for kg, Trays, Tubs, Boxes, and Labels
+- Quick access tiles for New Order and Order History
+
 ### Customer Management
 - Add and manage customer profiles
 - Set default pack types (tray or tub) per customer
@@ -20,14 +26,22 @@ The MGM Packing Assistant helps manufacturing units:
 - Define regular product lists for quick order creation
 
 ### Order Creation
+- **Date Picker**: Select order date (defaults to today)
 - Select from predefined regular items based on customer preferences
 - Add additional products on-demand
+- **Pack Type Toggle**: Switch between Tray/Tub per product (override customer default)
+- **Use Boxes Toggle**: Enable/disable box calculation per order (for customers who use crates instead)
 - Automatic calculation of:
   - Number of trays or tubs based on product weight
   - Number of boxes based on packing rules
   - Total weight per order
+  - Label count (1 label per tray + 1 per tub + 1 per box)
 - Support for different tub sizes (2kg and 5kg)
-- Per-item pack type selection (tray/tub)
+
+### Edit Orders
+- Click any order in Order History to view details
+- Edit quantities, pack types, date, and box settings
+- Real-time recalculation of packing requirements
 
 ### Packing Calculations
 - **Tray Packing**: Products packed in 400g trays, with configurable trays per box
@@ -35,17 +49,22 @@ The MGM Packing Assistant helps manufacturing units:
 - **Burger Packing**: Special calculations for burger products (typically 12 per tray)
 - **Meatball Packing**: Count-based packing (configurable count per tub)
 - **Rounding Rules**: Support for rounding up, down, or to specific multiples
-- **No-Box Option**: Some customers may prefer loose trays without boxing
+- **No-Box Option**: Toggle to disable boxes for customers using crates
+- **Label Count**: Automatic calculation of labels needed (trays + tubs + boxes)
+- **Halalnivore Special Rule**: If remainder < 3 when dividing tubs by 3, redistributes to boxes of 4
 
 ### Order Management
 - View complete order history
-- Filter orders by date or status
+- **Group By Dropdown**: Group orders by Date, Status, or Customer
+- **Filter by Customer**: Show orders for a specific customer
+- **Filter by Status**: Show orders with a specific status
+- Customer name displayed prominently on order cards (order number secondary)
 - Order status tracking:
   - **Draft**: Order being prepared
   - **Confirmed**: Order confirmed for production
   - **Completed**: Order delivered
   - **Cancelled**: Order cancelled
-- View detailed order breakdown including all items and calculations
+- View detailed order breakdown including all items, calculations, and label count
 
 ## 🛠️ Tech Stack
 
@@ -249,22 +268,32 @@ To reset all data (customers and orders):
 
 ## 🎨 UI Components
 
-### Home Page
+### Home Page (Dashboard)
+- Today's order statistics with live updates
+- Metrics: Total Orders, Confirmed, Completed, Total kg, Trays, Tubs, Boxes, Labels
 - Quick access tiles for New Order and Order History
-- Clean, minimal interface for easy navigation
 
 ### New Order Page
 - Customer selection dropdown
+- **Order Settings**: Date picker, Use Boxes toggle
 - Regular items pre-loaded based on customer
-- Per-item quantity input and pack type selection
+- Per-item quantity input with **Tray/Tub toggle buttons**
 - Real-time calculation display
-- Order summary with totals
+- Order summary with totals (kg, Trays, Tubs, Boxes, Labels)
+
+### Edit Order Page
+- All features of New Order page
+- Pre-populated with existing order data
+- Save changes with recalculated packing
 
 ### Order History Page
-- Filterable list of all orders
-- Date and status filters
-- Click-to-view order details
+- **Group By dropdown**: Date, Status, or Customer
+- **Filter by Customer**: Show specific customer's orders
+- **Filter by Status**: Filter by order status
+- Customer name prominently displayed on cards
+- Click-to-view order details modal
 - Status management (Confirmed, Completed, Draft, Cancelled)
+- Edit order button in detail modal
 
 ### Customers Page
 - List of all customers
