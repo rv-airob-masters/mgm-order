@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { fetchOrders, saveOrder, deleteOrderFromDb, checkConnection } from '../lib/supabaseSync';
 
 // Inline types (previously from @mgm/shared)
 export type PackType = 'tray' | 'tub';
@@ -166,6 +167,12 @@ export const CUSTOMER_RULES: CustomerRules[] = [
 
 type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
 
+interface SyncState {
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
+  syncError: string | null;
+}
+
 interface AppStore {
   // Customers
   customers: Customer[];
@@ -178,6 +185,11 @@ interface AppStore {
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   deleteOrder: (orderId: string) => void;
   getNextOrderNumber: () => string;
+
+  // Sync
+  syncState: SyncState;
+  syncWithSupabase: () => Promise<void>;
+  setSyncError: (error: string | null) => void;
 }
 
 // Initial customers - the real ones
@@ -247,28 +259,124 @@ export const useAppStore = create<AppStore>()(
 
       // Orders
       orders: [],
-      addOrder: (order: Order) => set((state: AppStore) => ({
-        orders: [order, ...state.orders]
-      })),
-      updateOrder: (updatedOrder: Order) => set((state: AppStore) => ({
-        orders: state.orders.map((order: Order) =>
-          order.id === updatedOrder.id ? updatedOrder : order
-        )
-      })),
-      updateOrderStatus: (orderId: string, status: OrderStatus) => set((state: AppStore) => ({
-        orders: state.orders.map((order: Order) =>
-          order.id === orderId ? { ...order, status } : order
-        )
-      })),
-      deleteOrder: (orderId: string) => set((state: AppStore) => ({
-        orders: state.orders.filter((order: Order) => order.id !== orderId)
-      })),
+      addOrder: async (order: Order) => {
+        // Add to local state immediately
+        set((state: AppStore) => ({
+          orders: [order, ...state.orders]
+        }));
+        // Sync to Supabase in background
+        const { error } = await saveOrder(order);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to save: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      updateOrder: async (updatedOrder: Order) => {
+        // Update local state immediately
+        set((state: AppStore) => ({
+          orders: state.orders.map((order: Order) =>
+            order.id === updatedOrder.id ? updatedOrder : order
+          )
+        }));
+        // Sync to Supabase in background
+        const { error } = await saveOrder(updatedOrder);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to update: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      updateOrderStatus: async (orderId: string, status: OrderStatus) => {
+        const order = get().orders.find((o: Order) => o.id === orderId);
+        if (!order) return;
+
+        const updatedOrder = { ...order, status };
+        // Update local state immediately
+        set((state: AppStore) => ({
+          orders: state.orders.map((o: Order) =>
+            o.id === orderId ? updatedOrder : o
+          )
+        }));
+        // Sync to Supabase in background
+        const { error } = await saveOrder(updatedOrder);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to update status: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      deleteOrder: async (orderId: string) => {
+        // Delete from local state immediately
+        set((state: AppStore) => ({
+          orders: state.orders.filter((order: Order) => order.id !== orderId)
+        }));
+        // Delete from Supabase in background
+        const { error } = await deleteOrderFromDb(orderId);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to delete: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
       getNextOrderNumber: () => {
         const year = new Date().getFullYear();
         const orders = get().orders;
         const yearOrders = orders.filter((o: Order) => o.orderNumber.includes(`${year}`));
         const nextNum = yearOrders.length + 1;
         return `ORD-${year}-${String(nextNum).padStart(4, '0')}`;
+      },
+
+      // Sync state
+      syncState: {
+        isSyncing: false,
+        lastSyncTime: null,
+        syncError: null,
+      },
+      setSyncError: (error: string | null) => set((state: AppStore) => ({
+        syncState: { ...state.syncState, syncError: error }
+      })),
+      syncWithSupabase: async () => {
+        const isConnected = await checkConnection();
+        if (!isConnected) {
+          set({ syncState: { ...get().syncState, syncError: 'No database connection', isSyncing: false } });
+          return;
+        }
+
+        set({ syncState: { ...get().syncState, isSyncing: true, syncError: null } });
+
+        try {
+          const { orders: remoteOrders, error } = await fetchOrders();
+          if (error) {
+            set({ syncState: { ...get().syncState, syncError: error, isSyncing: false } });
+            return;
+          }
+
+          // Merge strategy: remote orders take precedence, keep local orders not in remote
+          const localOrders = get().orders;
+          const remoteIds = new Set(remoteOrders.map(o => o.id));
+          const localOnlyOrders = localOrders.filter(o => !remoteIds.has(o.id));
+
+          // Upload local-only orders to Supabase
+          for (const order of localOnlyOrders) {
+            await saveOrder(order);
+          }
+
+          // Fetch final state from Supabase
+          const { orders: finalOrders } = await fetchOrders();
+
+          set({
+            orders: finalOrders.length > 0 ? finalOrders : localOrders,
+            syncState: {
+              isSyncing: false,
+              lastSyncTime: new Date(),
+              syncError: null,
+            }
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Sync failed';
+          set({ syncState: { ...get().syncState, syncError: message, isSyncing: false } });
+        }
       },
     }),
     {
