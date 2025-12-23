@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore, type Order } from '../store';
+import type { OrderItem } from '../types/order';
 
 const statusColors: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
   confirmed: 'bg-blue-100 text-blue-700',
   draft: 'bg-amber-100 text-amber-700',
   cancelled: 'bg-red-100 text-red-700',
+  in_progress: 'bg-purple-100 text-purple-700',
 };
 
 type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
@@ -18,7 +20,43 @@ export function OrdersPage() {
   const [customerFilter, setCustomerFilter] = useState('all');
   const [groupBy, setGroupBy] = useState<GroupBy>('date');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const { orders, updateOrderStatus, customers } = useAppStore();
+  const { orders, updateOrderStatus, updateOrder, customers } = useAppStore();
+
+  // Toggle item completion and auto-update order status
+  const handleToggleItemComplete = (itemIndex: number) => {
+    if (!selectedOrder) return;
+
+    const updatedItems: OrderItem[] = selectedOrder.items.map((item, idx) =>
+      idx === itemIndex ? { ...item, isCompleted: !item.isCompleted } : item
+    );
+
+    // Check if all items are completed
+    const allCompleted = updatedItems.every(item => item.isCompleted);
+    const someCompleted = updatedItems.some(item => item.isCompleted);
+
+    // Auto-update status based on completion
+    let newStatus: OrderStatus = selectedOrder.status;
+    if (allCompleted) {
+      newStatus = 'completed';
+    } else if (someCompleted && selectedOrder.status !== 'cancelled') {
+      newStatus = 'confirmed'; // Use confirmed as "in progress"
+    }
+
+    const updatedOrder: Order = {
+      ...selectedOrder,
+      items: updatedItems,
+      status: newStatus,
+    };
+
+    updateOrder(updatedOrder);
+    setSelectedOrder(updatedOrder);
+  };
+
+  // Get completion progress
+  const getCompletionProgress = (order: Order) => {
+    const completed = order.items.filter(item => item.isCompleted).length;
+    return { completed, total: order.items.length };
+  };
 
   // Calculate label count for an order (1 label per tray + 1 label per tub + 1 label per box)
   const getLabelCount = (order: Order) => order.totalTrays + order.totalTubs + order.totalBoxes;
@@ -178,6 +216,27 @@ export function OrdersPage() {
                       {order.status.toUpperCase()}
                     </span>
                   </div>
+                  {/* Progress Bar */}
+                  {order.items.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Progress</span>
+                        <span>{getCompletionProgress(order).completed}/{getCompletionProgress(order).total} items</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            getCompletionProgress(order).completed === getCompletionProgress(order).total
+                              ? 'bg-green-500'
+                              : 'bg-blue-500'
+                          }`}
+                          style={{
+                            width: `${(getCompletionProgress(order).completed / getCompletionProgress(order).total) * 100}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-sm text-gray-500 mt-3 pt-3 border-t">
                     <span>📅 {order.orderDate}</span>
                     <div className="flex gap-3">
@@ -218,28 +277,62 @@ export function OrdersPage() {
               📅 Order Date: {selectedOrder.orderDate}
             </div>
 
-            {/* Order Items */}
+            {/* Order Items with Toggle */}
             <div className="mb-4">
-              <h3 className="font-semibold text-gray-700 mb-3">Order Items</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-gray-700">Order Items</h3>
+                <span className="text-sm text-gray-500">
+                  {getCompletionProgress(selectedOrder).completed}/{getCompletionProgress(selectedOrder).total} done
+                </span>
+              </div>
               <div className="space-y-3">
                 {selectedOrder.items.map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-3">
+                  <div
+                    key={index}
+                    className={`rounded-lg p-3 border-2 transition-all cursor-pointer ${
+                      item.isCompleted
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-gray-50 border-transparent hover:border-gray-300'
+                    }`}
+                    onClick={() => handleToggleItemComplete(index)}
+                  >
                     <div className="flex justify-between items-start">
-                      <div>
-                        <span className="font-medium text-gray-800">{item.productName}</span>
-                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-600">
-                          {item.packType.toUpperCase()}
-                        </span>
+                      <div className="flex items-center gap-3">
+                        {/* Toggle Button */}
+                        <button
+                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                            item.isCompleted
+                              ? 'bg-green-500 border-green-500 text-white'
+                              : 'border-gray-400 hover:border-green-500'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleItemComplete(index);
+                          }}
+                        >
+                          {item.isCompleted && <span className="text-sm">✓</span>}
+                        </button>
+                        <div>
+                          <span className={`font-medium ${item.isCompleted ? 'text-green-700 line-through' : 'text-gray-800'}`}>
+                            {item.productName}
+                          </span>
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+                            {item.packType.toUpperCase()}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-gray-600 font-medium">{item.quantityKg} kg</span>
+                      <span className={`font-medium ${item.isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
+                        {item.quantityKg} kg
+                      </span>
                     </div>
-                    <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                    <div className="flex gap-4 mt-2 text-sm text-gray-500 ml-9">
                       {item.packType === 'tray' ? (
                         <span>🗄️ {item.trays} trays</span>
                       ) : (
                         <span>🪣 {item.tubs} tubs</span>
                       )}
                       <span>📦 {item.boxes} boxes</span>
+                      {item.isCompleted && <span className="text-green-600 font-medium">✅ Done</span>}
                     </div>
                   </div>
                 ))}

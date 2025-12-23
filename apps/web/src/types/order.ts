@@ -14,6 +14,7 @@ export interface OrderItem {
   tubWeight?: number;
   traysPerBox?: number;
   tubsPerBox?: number;
+  isCompleted?: boolean; // Track if this item is packed/done
 }
 
 export interface Order {
