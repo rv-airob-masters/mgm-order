@@ -16,6 +16,13 @@ const categoryColors: Record<Category, string> = {
   meatball: 'bg-orange-100 text-orange-700',
 };
 
+// Tile background colors for products
+const tileBgColors: Record<Category, string> = {
+  sausage: 'bg-amber-50 border-amber-200 hover:border-amber-400',
+  burger: 'bg-red-50 border-red-200 hover:border-red-400',
+  meatball: 'bg-orange-50 border-orange-200 hover:border-orange-400',
+};
+
 export function ProductsPage() {
   const { products, addProduct, updateProduct, deleteProduct } = useAppStore();
   const { isOwner, canEdit } = useAuth();
@@ -144,50 +151,68 @@ export function ProductsPage() {
         </select>
       </div>
 
-      {/* Products by Category */}
+      {/* Products by Category - Tile Layout */}
       {Object.entries(groupedProducts).map(([category, categoryProducts]) => (
         categoryProducts.length > 0 && (
-          <div key={category} className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          <div key={category} className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">
               {categoryLabels[category as Category]} ({categoryProducts.length})
             </h2>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {categoryProducts.map(product => (
-                <div key={product.id} className="card flex justify-between items-center">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-800">{product.name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${categoryColors[product.category]}`}>
-                        {product.category}
+                <div
+                  key={product.id}
+                  className={`rounded-xl p-4 border-2 transition-all hover:shadow-lg ${tileBgColors[product.category]}`}
+                >
+                  {/* Header with name and actions */}
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-gray-800 text-lg truncate flex-1">
+                      {product.name}
+                    </h3>
+                    {(canEdit || isOwner) && (
+                      <div className="flex gap-1 ml-2">
+                        {canEdit && (
+                          <button
+                            onClick={() => setEditingProduct(product)}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                            title="Edit product"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                        {isOwner && (
+                          <button
+                            onClick={() => handleDeleteProduct(product)}
+                            className="text-red-600 hover:text-red-800 p-1"
+                            title="Delete product (Owner only)"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Category badge */}
+                  <span className={`inline-block text-xs px-2 py-1 rounded-full mb-3 ${categoryColors[product.category]}`}>
+                    {product.category.toUpperCase()}
+                  </span>
+
+                  {/* Product details */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center bg-white/50 rounded-lg p-2">
+                      <span className="text-gray-600">🥡 Tray</span>
+                      <span className="font-medium text-gray-800">
+                        {product.trayWeightKg}kg • {product.traysPerBox}/box
                       </span>
                     </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Tray: {product.trayWeightKg}kg • {product.traysPerBox}/box | 
-                      Tub: {product.tubWeightKg5}kg • {product.tubsPerBox5kg}/box
+                    <div className="flex justify-between items-center bg-white/50 rounded-lg p-2">
+                      <span className="text-gray-600">🪣 Tub</span>
+                      <span className="font-medium text-gray-800">
+                        {product.tubWeightKg5}kg • {product.tubsPerBox5kg}/box
+                      </span>
                     </div>
                   </div>
-                  {(canEdit || isOwner) && (
-                    <div className="flex gap-2">
-                      {canEdit && (
-                        <button
-                          onClick={() => setEditingProduct(product)}
-                          className="text-blue-600 hover:text-blue-800 px-2"
-                          title="Edit product"
-                        >
-                          ✏️
-                        </button>
-                      )}
-                      {isOwner && (
-                        <button
-                          onClick={() => handleDeleteProduct(product)}
-                          className="text-red-600 hover:text-red-800 px-2"
-                          title="Delete product (Owner only)"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

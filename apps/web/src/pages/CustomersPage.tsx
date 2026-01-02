@@ -4,6 +4,19 @@ import type { Customer, PackType } from '@mgm/shared';
 import { useAppStore } from '../store';
 import { useAuth } from '../lib/auth';
 
+// Pastel colors for customer tiles
+const pastelColors = [
+  'bg-pink-100 border-pink-200 hover:border-pink-400',
+  'bg-blue-100 border-blue-200 hover:border-blue-400',
+  'bg-green-100 border-green-200 hover:border-green-400',
+  'bg-purple-100 border-purple-200 hover:border-purple-400',
+  'bg-yellow-100 border-yellow-200 hover:border-yellow-400',
+  'bg-orange-100 border-orange-200 hover:border-orange-400',
+  'bg-teal-100 border-teal-200 hover:border-teal-400',
+  'bg-indigo-100 border-indigo-200 hover:border-indigo-400',
+  'bg-rose-100 border-rose-200 hover:border-rose-400',
+];
+
 export function CustomersPage() {
   const navigate = useNavigate();
   const { isOwner } = useAuth();
@@ -79,33 +92,19 @@ export function CustomersPage() {
         />
       </div>
 
-      {/* Customer List */}
-      <div className="space-y-4">
-        {filteredCustomers.map(customer => (
+      {/* Customer Tiles - 3 per row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredCustomers.map((customer, index) => (
           <div
             key={customer.id}
             onClick={() => handleSelectCustomer(customer)}
-            className="card cursor-pointer hover:shadow-lg transition-shadow border-2 border-transparent hover:border-primary-300"
+            className={`rounded-xl p-4 cursor-pointer transition-all border-2 hover:shadow-lg ${pastelColors[index % pastelColors.length]}`}
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {customer.name}
-                </h3>
-                {customer.contactPhone && (
-                  <p className="text-gray-600 text-sm">📞 {customer.contactPhone}</p>
-                )}
-                {customer.address && (
-                  <p className="text-gray-500 text-sm">📍 {customer.address}</p>
-                )}
-              </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                customer.defaultSausagePackType === 'tray'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-blue-100 text-blue-700'
-              }`}>
-                {customer.defaultSausagePackType.toUpperCase()}
-              </span>
+            {/* Header with name and actions */}
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-lg font-bold text-gray-800 truncate flex-1">
+                {customer.name}
+              </h3>
               {isOwner && (
                 <button
                   onClick={(e) => {
@@ -114,27 +113,48 @@ export function CustomersPage() {
                       deleteCustomer(customer.id);
                     }
                   }}
-                  className="ml-2 text-red-600 hover:text-red-800 px-2"
+                  className="ml-2 text-red-600 hover:text-red-800 p-1"
                   title="Delete customer (Owner only)"
                 >
                   🗑️
                 </button>
               )}
             </div>
+
+            {/* Pack type badge */}
+            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mb-3 ${
+              customer.defaultSausagePackType === 'tray'
+                ? 'bg-green-200 text-green-800'
+                : 'bg-blue-200 text-blue-800'
+            }`}>
+              {customer.defaultSausagePackType.toUpperCase()}
+            </span>
+
+            {/* Contact info */}
+            <div className="space-y-1 text-sm">
+              {customer.contactPhone && (
+                <p className="text-gray-700">📞 {customer.contactPhone}</p>
+              )}
+              {customer.address && (
+                <p className="text-gray-600 truncate">📍 {customer.address}</p>
+              )}
+            </div>
+
+            {/* Special instructions */}
             {customer.specialInstructions && (
-              <div className="mt-3 p-2 bg-amber-50 rounded text-amber-700 text-sm">
+              <div className="mt-3 p-2 bg-white/60 rounded text-amber-700 text-xs">
                 ⚠️ {customer.specialInstructions}
               </div>
             )}
           </div>
         ))}
-
-        {filteredCustomers.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No customers found
-          </div>
-        )}
       </div>
+
+      {filteredCustomers.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          No customers found
+        </div>
+      )}
 
       {/* Add Customer Modal */}
       {showAddModal && (
