@@ -2,14 +2,17 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   fetchOrders, saveOrder, deleteOrderFromDb, checkConnection,
-  fetchCustomers, saveCustomer, deleteCustomerFromDb
+  fetchCustomers, saveCustomer, deleteCustomerFromDb,
+  fetchProducts, saveProduct, deleteProductFromDb
 } from '../lib/supabaseSync';
 import type { Order, OrderItem } from '../types/order';
 import type { Customer, PackType, SyncStatus } from '../types/customer';
+import type { Product } from '../types/product';
 
 // Re-export types for consumers
 export type { Order, OrderItem } from '../types/order';
 export type { Customer, PackType, SyncStatus } from '../types/customer';
+export type { Product } from '../types/product';
 
 // Customer-specific product configuration
 export interface CustomerProduct {
@@ -145,6 +148,12 @@ interface AppStore {
   updateCustomer: (customer: Customer) => void;
   deleteCustomer: (customerId: string) => void;
 
+  // Products
+  products: Product[];
+  addProduct: (product: Product) => void;
+  updateProduct: (product: Product) => void;
+  deleteProduct: (productId: string) => void;
+
   // Orders
   orders: Order[];
   addOrder: (order: Order) => void;
@@ -257,6 +266,44 @@ export const useAppStore = create<AppStore>()(
         const { error } = await deleteCustomerFromDb(customerId);
         if (error) {
           set({ syncState: { ...get().syncState, syncError: `Failed to delete customer: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+
+      // Products
+      products: [],
+      addProduct: async (product: Product) => {
+        set((state: AppStore) => ({
+          products: [...state.products, product]
+        }));
+        const { error } = await saveProduct(product);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to save product: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      updateProduct: async (updatedProduct: Product) => {
+        set((state: AppStore) => ({
+          products: state.products.map((p: Product) =>
+            p.id === updatedProduct.id ? updatedProduct : p
+          )
+        }));
+        const { error } = await saveProduct(updatedProduct);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to update product: ${error}` } });
+        } else {
+          set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
+        }
+      },
+      deleteProduct: async (productId: string) => {
+        set((state: AppStore) => ({
+          products: state.products.filter((p: Product) => p.id !== productId)
+        }));
+        const { error } = await deleteProductFromDb(productId);
+        if (error) {
+          set({ syncState: { ...get().syncState, syncError: `Failed to delete product: ${error}` } });
         } else {
           set({ syncState: { ...get().syncState, syncError: null, lastSyncTime: new Date() } });
         }
@@ -381,13 +428,30 @@ export const useAppStore = create<AppStore>()(
             await saveCustomer(customer);
           }
 
+          // Sync Products
+          const { data: remoteProducts, error: productsError } = await fetchProducts();
+          if (productsError) {
+            console.warn('Products sync warning:', productsError);
+            // Don't fail sync for products - they have defaults
+          }
+
+          // Merge products: remote take precedence, upload local-only
+          const localProducts = get().products;
+          const remoteProductIds = new Set(remoteProducts.map(p => p.id));
+          const localOnlyProducts = localProducts.filter(p => !remoteProductIds.has(p.id));
+          for (const product of localOnlyProducts) {
+            await saveProduct(product);
+          }
+
           // Fetch final state from Supabase
           const { orders: finalOrders } = await fetchOrders();
           const { customers: finalCustomers } = await fetchCustomers();
+          const { data: finalProducts } = await fetchProducts();
 
           set({
             orders: finalOrders.length > 0 ? finalOrders : localOrders,
             customers: finalCustomers.length > 0 ? finalCustomers : localCustomers,
+            products: finalProducts.length > 0 ? finalProducts : localProducts,
             syncState: {
               isSyncing: false,
               lastSyncTime: new Date(),

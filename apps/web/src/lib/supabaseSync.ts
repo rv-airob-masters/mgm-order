@@ -1,10 +1,13 @@
 import { supabase } from './supabase';
 import type { Order, OrderItem } from '../types/order';
 import type { Customer } from '../types/customer';
+import type { Product, DbProduct } from '../types/product';
+import { fromDbProduct, toDbProduct } from '../types/product';
 
 // Re-export types for consumers
 export type { Order, OrderItem } from '../types/order';
 export type { Customer } from '../types/customer';
+export type { Product } from '../types/product';
 
 // Database table types (matching Supabase schema)
 interface DbOrder {
@@ -288,3 +291,89 @@ export async function deleteCustomerFromDb(customerId: string): Promise<{ succes
   }
 }
 
+// ============================================
+// PRODUCT OPERATIONS
+// ============================================
+
+export async function fetchProducts(): Promise<{ data: Product[]; error: string | null }> {
+  try {
+    if (!navigator.onLine) {
+      updateConnectionStatus({ isOnline: false });
+      return { data: [], error: 'Offline - using local data' };
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('category')
+      .order('name');
+
+    if (error) {
+      updateConnectionStatus({ lastError: error.message, isConnected: false });
+      return { data: [], error: error.message };
+    }
+
+    updateConnectionStatus({ isConnected: true, lastError: null });
+    return { data: (data as DbProduct[]).map(fromDbProduct), error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch products';
+    updateConnectionStatus({ lastError: message });
+    return { data: [], error: message };
+  }
+}
+
+export async function saveProduct(product: Product): Promise<{ success: boolean; error: string | null }> {
+  try {
+    if (!navigator.onLine) {
+      updateConnectionStatus({ isOnline: false });
+      return { success: false, error: 'Offline - changes saved locally only' };
+    }
+
+    const dbProduct = toDbProduct(product);
+
+    const { error } = await supabase
+      .from('products')
+      .upsert({
+        ...dbProduct,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      updateConnectionStatus({ lastError: error.message, isConnected: false });
+      return { success: false, error: error.message };
+    }
+
+    updateConnectionStatus({ isConnected: true, lastError: null });
+    return { success: true, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to save product';
+    updateConnectionStatus({ lastError: message });
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteProductFromDb(productId: string): Promise<{ success: boolean; error: string | null }> {
+  try {
+    if (!navigator.onLine) {
+      updateConnectionStatus({ isOnline: false });
+      return { success: false, error: 'Offline - cannot delete' };
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (error) {
+      updateConnectionStatus({ lastError: error.message, isConnected: false });
+      return { success: false, error: error.message };
+    }
+
+    updateConnectionStatus({ isConnected: true, lastError: null });
+    return { success: true, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to delete product';
+    updateConnectionStatus({ lastError: message });
+    return { success: false, error: message };
+  }
+}

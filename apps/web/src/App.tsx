@@ -5,6 +5,7 @@ import { CustomersPage } from './pages/CustomersPage';
 import { NewOrderPage } from './pages/NewOrderPage';
 import { EditOrderPage } from './pages/EditOrderPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { ProductsPage } from './pages/ProductsPage';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/orders/new/:customerId" element={<NewOrderPage />} />
         <Route path="/orders/edit/:orderId" element={<EditOrderPage />} />
         <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/products" element={<ProductsPage />} />
       </Routes>
     </Layout>
   );

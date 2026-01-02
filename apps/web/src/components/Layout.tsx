@@ -40,6 +40,7 @@ export function Layout({ children }: LayoutProps) {
     { path: '/', label: '🏠 Home' },
     { path: '/customers', label: '👥 Customers' },
     { path: '/orders', label: '📋 Orders' },
+    { path: '/products', label: '📦 Products' },
   ];
 
   const getConnectionIndicator = () => {
