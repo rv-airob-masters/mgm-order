@@ -14,28 +14,17 @@ CREATE TABLE IF NOT EXISTS user_roles (
 -- Enable RLS
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can read their own role
+-- Drop all existing policies
 DROP POLICY IF EXISTS "Users can read own role" ON user_roles;
-CREATE POLICY "Users can read own role" ON user_roles
-    FOR SELECT USING (auth.uid() = id);
-
--- Policy: Admins can read all roles
 DROP POLICY IF EXISTS "Admins can read all roles" ON user_roles;
-CREATE POLICY "Admins can read all roles" ON user_roles
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM user_roles WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
--- Policy: Admins can update roles
 DROP POLICY IF EXISTS "Admins can update roles" ON user_roles;
-CREATE POLICY "Admins can update roles" ON user_roles
-    FOR UPDATE USING (
-        EXISTS (
-            SELECT 1 FROM user_roles WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
+DROP POLICY IF EXISTS "Allow authenticated users to read own role" ON user_roles;
+
+-- Simple policy: Authenticated users can read their own role
+CREATE POLICY "Allow authenticated users to read own role" ON user_roles
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = id);
 
 -- Grant permissions
 GRANT SELECT ON user_roles TO authenticated;

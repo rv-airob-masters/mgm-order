@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAppStore, type Product } from '../store';
+import { useAuth } from '../lib/auth';
 
 type Category = 'sausage' | 'burger' | 'meatball';
 
@@ -17,6 +18,7 @@ const categoryColors: Record<Category, string> = {
 
 export function ProductsPage() {
   const { products, addProduct, updateProduct, deleteProduct } = useAppStore();
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -114,9 +116,11 @@ export function ProductsPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">📦 Products</h1>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary">
-          ➕ Add Product
-        </button>
+        {isAdmin && (
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
+            ➕ Add Product
+          </button>
+        )}
       </div>
 
       {/* Search & Filter */}
@@ -162,20 +166,22 @@ export function ProductsPage() {
                       Tub: {product.tubWeightKg5}kg • {product.tubsPerBox5kg}/box
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setEditingProduct(product)}
-                      className="text-blue-600 hover:text-blue-800 px-2"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProduct(product)}
-                      className="text-red-600 hover:text-red-800 px-2"
-                    >
-                      🗑️
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingProduct(product)}
+                        className="text-blue-600 hover:text-blue-800 px-2"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product)}
+                        className="text-red-600 hover:text-red-800 px-2"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -187,14 +193,16 @@ export function ProductsPage() {
         <div className="text-center py-12 text-gray-500">
           <div className="text-4xl mb-4">📦</div>
           <p>No products found</p>
-          <button onClick={() => setShowAddModal(true)} className="btn-primary mt-4">
-            Add First Product
-          </button>
+          {isAdmin && (
+            <button onClick={() => setShowAddModal(true)} className="btn-primary mt-4">
+              Add First Product
+            </button>
+          )}
         </div>
       )}
 
       {/* Add Product Modal */}
-      {showAddModal && (
+      {isAdmin && showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-4">➕ Add New Product</h2>
@@ -293,7 +301,7 @@ export function ProductsPage() {
       )}
 
       {/* Edit Product Modal */}
-      {editingProduct && (
+      {isAdmin && editingProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-4">✏️ Edit Product</h2>
