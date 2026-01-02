@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ReactNode, useEffect, useState } from 'react';
 import { useAppStore } from '../store';
 import { subscribeToConnectionStatus, ConnectionStatus } from '../lib/supabaseSync';
+import { useAuth } from '../lib/auth';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,6 +11,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { syncState, syncWithSupabase, setSyncError } = useAppStore();
+  const { user, isAdmin, signOut } = useAuth();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     isOnline: navigator.onLine,
     isConnected: false,
@@ -36,12 +38,16 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [syncState.syncError]);
 
-  const navItems = [
-    { path: '/', label: '🏠 Home' },
-    { path: '/customers', label: '👥 Customers' },
-    { path: '/orders', label: '📋 Orders' },
-    { path: '/products', label: '📦 Products' },
+  // All nav items with admin flag
+  const allNavItems = [
+    { path: '/', label: '🏠 Home', adminOnly: true },
+    { path: '/customers', label: '👥 Customers', adminOnly: true },
+    { path: '/orders', label: '📋 Orders', adminOnly: true },
+    { path: '/products', label: '📦 Products', adminOnly: false },
   ];
+
+  // Filter nav items based on user role
+  const navItems = allNavItems.filter(item => !item.adminOnly || isAdmin);
 
   const getConnectionIndicator = () => {
     if (syncState.isSyncing) {
@@ -100,7 +106,7 @@ export function Layout({ children }: LayoutProps) {
                 <span className="hidden sm:inline">{indicator.text}</span>
               </div>
 
-              <nav className="flex gap-4">
+              <nav className="flex gap-2">
                 {navItems.map(item => (
                   <Link
                     key={item.path}
@@ -115,6 +121,22 @@ export function Layout({ children }: LayoutProps) {
                   </Link>
                 ))}
               </nav>
+
+              {/* User Info & Logout */}
+              {user && (
+                <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
+                  <span className="text-sm hidden md:inline">
+                    {isAdmin ? '👑' : '👤'} {user.email.split('@')[0]}
+                  </span>
+                  <button
+                    onClick={() => signOut()}
+                    className="px-2 py-1 text-sm rounded hover:bg-white/10"
+                    title="Sign out"
+                  >
+                    🚪
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
