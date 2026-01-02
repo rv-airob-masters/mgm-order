@@ -110,7 +110,7 @@ export const CUSTOMER_RULES: CustomerRules[] = [
     packingRules: {
       tubsPerBox5kg: 3,
       roundingRule: 'up',
-      extraTubRule: 'pack4', // If 1 extra tub, pack as box of 4
+      // No longer using pack4 rule - just divide tubs by 3
     },
   },
   {
@@ -193,7 +193,7 @@ const INITIAL_CUSTOMERS: Customer[] = [
     contactPhone: '',
     contactEmail: '',
     address: '',
-    specialInstructions: '5kg tubs, 3 per box. If 1 extra tub after division, pack as box of 4.',
+    specialInstructions: '5kg tubs, 3 tubs per box. Boxes = tubs ÷ 3 (rounded up).',
     defaultSausagePackType: 'tub' as PackType,
     isActive: true,
     syncStatus: 'synced' as const,

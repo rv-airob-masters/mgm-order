@@ -180,21 +180,8 @@ export function EditOrderPage() {
           ? (rules.tubsPerBox2kg || 7)
           : (rules.tubsPerBox5kg || 3);
 
-        // Halalnivore special rule
-        if (rules.extraTubRule === 'pack4' && tubsPerBox === 3) {
-          const remainder = tubs % 3;
-          if (remainder === 0) {
-            boxes = tubs / 3;
-          } else if (remainder === 1 && tubs >= 4) {
-            boxes = Math.floor((tubs - 4) / 3) + 1;
-          } else if (remainder === 2 && tubs >= 8) {
-            boxes = Math.floor((tubs - 8) / 3) + 2;
-          } else {
-            boxes = Math.ceil(tubs / 3);
-          }
-        } else {
-          boxes = Math.ceil(tubs / tubsPerBox);
-        }
+        // Simple calculation: boxes = tubs / tubsPerBox (rounded up)
+        boxes = Math.ceil(tubs / tubsPerBox);
       }
     } else {
       const trayWeight = product.trayWeightKg;
