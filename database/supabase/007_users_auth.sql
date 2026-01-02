@@ -1,15 +1,23 @@
 -- ============================================
 -- Users Table for Role-Based Access Control
 -- ============================================
+-- Roles:
+--   owner  - Full access: view, add, edit, DELETE products/customers/orders
+--   admin  - Can view, add, edit (NO delete)
+--   viewer - Can only view products page
 
 -- Create users table to store user roles
 CREATE TABLE IF NOT EXISTS user_roles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin', 'viewer')),
+    role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('owner', 'admin', 'viewer')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- If table already exists, update the constraint to include 'owner'
+ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check CHECK (role IN ('owner', 'admin', 'viewer'));
 
 -- Enable RLS
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;

@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 import { supabase } from './supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
-export type UserRole = 'admin' | 'viewer';
+export type UserRole = 'owner' | 'admin' | 'viewer';
 
 export interface AuthUser {
   id: string;
@@ -14,7 +14,9 @@ export interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   isLoading: boolean;
-  isAdmin: boolean;
+  isOwner: boolean;   // Can do everything including delete
+  isAdmin: boolean;   // Can add/edit but not delete
+  canEdit: boolean;   // Owner or Admin can edit
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;

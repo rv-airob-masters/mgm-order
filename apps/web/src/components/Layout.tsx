@@ -11,7 +11,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { syncState, syncWithSupabase, setSyncError } = useAppStore();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, isOwner, signOut } = useAuth();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     isOnline: navigator.onLine,
     isConnected: false,
@@ -126,7 +126,7 @@ export function Layout({ children }: LayoutProps) {
               {user && (
                 <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
                   <span className="text-sm hidden md:inline">
-                    {isAdmin ? '👑' : '👤'} {user.email.split('@')[0]}
+                    {isOwner ? '🔑' : isAdmin ? '👑' : '👤'} {user.email.split('@')[0]}
                   </span>
                   <button
                     onClick={() => signOut()}

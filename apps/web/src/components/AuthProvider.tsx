@@ -87,11 +87,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setSession(null);
   };
 
+  const isOwner = user?.role === 'owner';
+  const isAdmin = user?.role === 'admin' || isOwner; // Owner has admin privileges too
+  const canEdit = isOwner || user?.role === 'admin'; // Both owner and admin can edit
+
   const value: AuthContextType = {
     user,
     session,
     isLoading,
-    isAdmin: user?.role === 'admin',
+    isOwner,
+    isAdmin,
+    canEdit,
     signIn,
     signUp,
     signOut,

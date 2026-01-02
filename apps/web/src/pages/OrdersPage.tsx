@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore, type Order } from '../store';
 import type { OrderItem } from '../types/order';
+import { useAuth } from '../lib/auth';
 
 const statusColors: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
@@ -16,11 +17,20 @@ type GroupBy = 'date' | 'status' | 'customer';
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const { isOwner } = useAuth();
   const [statusFilter, setStatusFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
   const [groupBy, setGroupBy] = useState<GroupBy>('date');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const { orders, updateOrderStatus, updateOrder, customers } = useAppStore();
+  const { orders, updateOrderStatus, updateOrder, deleteOrder, customers } = useAppStore();
+
+  // Delete order (owner only)
+  const handleDeleteOrder = (order: Order) => {
+    if (confirm(`Delete order #${order.orderNumber} for ${order.customerName}? This cannot be undone.`)) {
+      deleteOrder(order.id);
+      setSelectedOrder(null);
+    }
+  };
 
   // Toggle item completion and auto-update order status
   const handleToggleItemComplete = (itemIndex: number) => {
@@ -418,6 +428,15 @@ export function OrdersPage() {
             </div>
 
             <div className="flex gap-3">
+              {isOwner && (
+                <button
+                  onClick={() => handleDeleteOrder(selectedOrder)}
+                  className="py-2 px-4 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  title="Delete order (Owner only)"
+                >
+                  🗑️
+                </button>
+              )}
               <button
                 onClick={() => {
                   // Find the customer to pass state

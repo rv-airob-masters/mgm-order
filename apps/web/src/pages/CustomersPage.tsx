@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Customer, PackType } from '@mgm/shared';
 import { useAppStore } from '../store';
+import { useAuth } from '../lib/auth';
 
 export function CustomersPage() {
   const navigate = useNavigate();
+  const { isOwner } = useAuth();
   const [search, setSearch] = useState('');
-  const { customers, addCustomer } = useAppStore();
+  const { customers, addCustomer, deleteCustomer } = useAppStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -104,6 +106,20 @@ export function CustomersPage() {
               }`}>
                 {customer.defaultSausagePackType.toUpperCase()}
               </span>
+              {isOwner && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete customer "${customer.name}"? This cannot be undone.`)) {
+                      deleteCustomer(customer.id);
+                    }
+                  }}
+                  className="ml-2 text-red-600 hover:text-red-800 px-2"
+                  title="Delete customer (Owner only)"
+                >
+                  🗑️
+                </button>
+              )}
             </div>
             {customer.specialInstructions && (
               <div className="mt-3 p-2 bg-amber-50 rounded text-amber-700 text-sm">
