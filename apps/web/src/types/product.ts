@@ -1,9 +1,14 @@
 // Product types - shared between store and sync service
 
+export type MeatType = 'chicken' | 'beef' | 'lamb' | 'veal' | 'mixed';
+export type SpiceType = 'mild' | 'normal' | 'none';
+
 export interface Product {
   id: string;
   name: string;
   category: 'sausage' | 'burger' | 'meatball';
+  meatType: MeatType;
+  spiceType: SpiceType;
   trayWeightKg: number;
   traysPerBox: number;
   tubWeightKg5: number;
@@ -32,6 +37,8 @@ export interface DbProduct {
   id: string;
   name: string;
   category: string;
+  meat_type: string;
+  spice_type: string;
   tray_weight_kg: number;
   trays_per_box: number;
   tub_weight_kg_5: number;
@@ -61,6 +68,8 @@ export function fromDbProduct(db: DbProduct): Product {
     id: db.id,
     name: db.name,
     category: db.category as Product['category'],
+    meatType: (db.meat_type as MeatType) || 'mixed',
+    spiceType: (db.spice_type as SpiceType) || 'normal',
     trayWeightKg: Number(db.tray_weight_kg),
     traysPerBox: db.trays_per_box,
     tubWeightKg5: Number(db.tub_weight_kg_5),
@@ -80,6 +89,8 @@ export function toDbProduct(product: Omit<Product, 'createdAt' | 'updatedAt'>): 
     id: product.id,
     name: product.name,
     category: product.category,
+    meat_type: product.meatType,
+    spice_type: product.spiceType,
     tray_weight_kg: product.trayWeightKg,
     trays_per_box: product.traysPerBox,
     tub_weight_kg_5: product.tubWeightKg5,

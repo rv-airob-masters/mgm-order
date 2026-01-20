@@ -40,11 +40,17 @@ export interface CustomerRules {
   };
 }
 
+// Meat and spice types for grouping
+export type MeatType = 'chicken' | 'beef' | 'lamb' | 'veal' | 'mixed';
+export type SpiceType = 'mild' | 'normal' | 'none';
+
 // All available products in the system
 export interface ProductConfig {
   id: string;
   name: string;
   category: 'sausage' | 'burger' | 'meatball';
+  meatType: MeatType;
+  spiceType: SpiceType;
   trayWeightKg: number;
   traysPerBox: number;
   tubWeightKg5: number; // 5kg tub
@@ -55,20 +61,28 @@ export interface ProductConfig {
 }
 
 export const ALL_PRODUCTS: ProductConfig[] = [
-  // Sausages
-  { id: 'chicken-sausage', name: 'Chicken Sausage', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'chicken-sausage-50g', name: 'Chicken Sausage (50g)', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'chicken-sausage-30g', name: 'Chicken Sausage (30g)', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'chicken-sausage-60g', name: 'Chicken Sausage (60g)', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'beef-sausage', name: 'Beef Sausage', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'lamb-sausage', name: 'Lamb Sausage', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'veal-sausage', name: 'Veal Sausage', category: 'sausage', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  // Burgers
-  { id: 'beef-burger', name: 'Beef Burger', category: 'burger', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'lamb-kofte', name: 'Lamb Kofte', category: 'burger', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
-  { id: 'beef-cj', name: 'Beef C&J', category: 'burger', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  // Chicken Sausages - Normal spice
+  { id: 'chicken-sausage', name: 'Chicken Sausage', category: 'sausage', meatType: 'chicken', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'chicken-sausage-50g', name: 'Chicken Sausage (50g)', category: 'sausage', meatType: 'chicken', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'chicken-sausage-30g', name: 'Chicken Sausage (30g)', category: 'sausage', meatType: 'chicken', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'chicken-sausage-60g', name: 'Chicken Sausage (60g)', category: 'sausage', meatType: 'chicken', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  // Chicken Sausages - Mild spice
+  { id: 'chicken-sausage-mild', name: 'Chicken Sausage (Mild)', category: 'sausage', meatType: 'chicken', spiceType: 'mild', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  // Beef Sausages
+  { id: 'beef-sausage', name: 'Beef Sausage', category: 'sausage', meatType: 'beef', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'beef-sausage-mild', name: 'Beef Sausage (Mild)', category: 'sausage', meatType: 'beef', spiceType: 'mild', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  // Lamb Sausages
+  { id: 'lamb-sausage', name: 'Lamb Sausage', category: 'sausage', meatType: 'lamb', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'lamb-sausage-mild', name: 'Lamb Sausage (Mild)', category: 'sausage', meatType: 'lamb', spiceType: 'mild', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  // Veal Sausages
+  { id: 'veal-sausage', name: 'Veal Sausage', category: 'sausage', meatType: 'veal', spiceType: 'normal', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'veal-sausage-mild', name: 'Veal Sausage (Mild)', category: 'sausage', meatType: 'veal', spiceType: 'mild', trayWeightKg: 0.4, traysPerBox: 20, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  // Burgers (no spice variation)
+  { id: 'beef-burger', name: 'Beef Burger', category: 'burger', meatType: 'beef', spiceType: 'none', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'lamb-kofte', name: 'Lamb Kofte', category: 'burger', meatType: 'lamb', spiceType: 'none', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
+  { id: 'beef-cj', name: 'Beef C&J', category: 'burger', meatType: 'beef', spiceType: 'none', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7 },
   // Meatballs
-  { id: 'beef-meatballs', name: 'Beef Meatballs', category: 'meatball', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7, countPerTub: 20 },
+  { id: 'beef-meatballs', name: 'Beef Meatballs', category: 'meatball', meatType: 'beef', spiceType: 'none', trayWeightKg: 1, traysPerBox: 10, tubWeightKg5: 5, tubWeightKg2: 2, tubsPerBox5kg: 3, tubsPerBox2kg: 7, countPerTub: 20 },
 ];
 
 // Customer-specific rules

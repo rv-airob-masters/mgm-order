@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAppStore, type Product } from '../store';
+import { useAppStore, type Product, type MeatType, type SpiceType } from '../store';
 import { useAuth } from '../lib/auth';
 
 type Category = 'sausage' | 'burger' | 'meatball';
@@ -23,6 +23,20 @@ const tileBgColors: Record<Category, string> = {
   meatball: 'bg-orange-50 border-orange-200 hover:border-orange-400',
 };
 
+const meatTypeLabels: Record<MeatType, string> = {
+  chicken: '🐔 Chicken',
+  beef: '🐄 Beef',
+  lamb: '🐑 Lamb',
+  veal: '🐮 Veal',
+  mixed: '🍖 Mixed',
+};
+
+const spiceTypeLabels: Record<SpiceType, string> = {
+  mild: 'Mild',
+  normal: 'Normal',
+  none: 'None',
+};
+
 export function ProductsPage() {
   const { products, addProduct, updateProduct, deleteProduct } = useAppStore();
   const { isOwner, canEdit } = useAuth();
@@ -34,6 +48,8 @@ export function ProductsPage() {
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: 'sausage' as Category,
+    meatType: 'chicken' as MeatType,
+    spiceType: 'normal' as SpiceType,
     trayWeightKg: 0.4,
     traysPerBox: 20,
     tubWeightKg5: 5,
@@ -80,6 +96,8 @@ export function ProductsPage() {
       id,
       name: newProduct.name.trim(),
       category: newProduct.category,
+      meatType: newProduct.meatType,
+      spiceType: newProduct.spiceType,
       trayWeightKg: newProduct.trayWeightKg,
       traysPerBox: newProduct.traysPerBox,
       tubWeightKg5: newProduct.tubWeightKg5,
@@ -97,6 +115,8 @@ export function ProductsPage() {
     setNewProduct({
       name: '',
       category: 'sausage',
+      meatType: 'chicken',
+      spiceType: 'normal',
       trayWeightKg: 0.4,
       traysPerBox: 20,
       tubWeightKg5: 5,
@@ -193,10 +213,20 @@ export function ProductsPage() {
                     )}
                   </div>
 
-                  {/* Category badge */}
-                  <span className={`inline-block text-xs px-2 py-1 rounded-full mb-3 ${categoryColors[product.category]}`}>
-                    {product.category.toUpperCase()}
-                  </span>
+                  {/* Badges row: Category, Meat Type, Spice */}
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${categoryColors[product.category]}`}>
+                      {product.category.toUpperCase()}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                      {meatTypeLabels[product.meatType]}
+                    </span>
+                    {product.spiceType !== 'none' && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${product.spiceType === 'mild' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {spiceTypeLabels[product.spiceType]}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Product details */}
                   <div className="space-y-2 text-sm">
@@ -261,6 +291,35 @@ export function ProductsPage() {
                   <option value="burger">🍔 Burger</option>
                   <option value="meatball">🧆 Meatball</option>
                 </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Meat Type</label>
+                  <select
+                    className="input w-full"
+                    value={newProduct.meatType}
+                    onChange={e => setNewProduct({ ...newProduct, meatType: e.target.value as MeatType })}
+                  >
+                    <option value="chicken">🐔 Chicken</option>
+                    <option value="beef">🐄 Beef</option>
+                    <option value="lamb">🐑 Lamb</option>
+                    <option value="veal">🐮 Veal</option>
+                    <option value="mixed">🍖 Mixed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Spice Type</label>
+                  <select
+                    className="input w-full"
+                    value={newProduct.spiceType}
+                    onChange={e => setNewProduct({ ...newProduct, spiceType: e.target.value as SpiceType })}
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="mild">Mild</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -346,6 +405,35 @@ export function ProductsPage() {
                   value={editingProduct.name}
                   onChange={e => setEditingProduct({ ...editingProduct, name: e.target.value })}
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Meat Type</label>
+                  <select
+                    className="input w-full"
+                    value={editingProduct.meatType}
+                    onChange={e => setEditingProduct({ ...editingProduct, meatType: e.target.value as MeatType })}
+                  >
+                    <option value="chicken">🐔 Chicken</option>
+                    <option value="beef">🐄 Beef</option>
+                    <option value="lamb">🐑 Lamb</option>
+                    <option value="veal">🐮 Veal</option>
+                    <option value="mixed">🍖 Mixed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Spice Type</label>
+                  <select
+                    className="input w-full"
+                    value={editingProduct.spiceType}
+                    onChange={e => setEditingProduct({ ...editingProduct, spiceType: e.target.value as SpiceType })}
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="mild">Mild</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

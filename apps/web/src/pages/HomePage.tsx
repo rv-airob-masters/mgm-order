@@ -1,6 +1,22 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppStore } from '../store';
+import { useAppStore, ALL_PRODUCTS, type MeatType, type SpiceType } from '../store';
+
+// Labels for meat types
+const meatLabels: Record<MeatType, string> = {
+  chicken: '🐔 Chicken',
+  beef: '🐄 Beef',
+  lamb: '🐑 Lamb',
+  veal: '🐮 Veal',
+  mixed: '🍖 Mixed',
+};
+
+// Labels for spice types
+const spiceLabels: Record<SpiceType, string> = {
+  mild: 'Mild',
+  normal: 'Normal',
+  none: '',
+};
 
 export function HomePage() {
   const { orders } = useAppStore();
@@ -25,29 +41,51 @@ export function HomePage() {
     };
   }, [orders, today]);
 
-  // Calculate product breakdown by customer for today
-  const productByCustomer = useMemo(() => {
+  // Calculate breakdown by MEAT TYPE + SPICE TYPE for today
+  const meatBreakdown = useMemo(() => {
     const todayOrders = orders.filter(o => o.orderDate === today && o.status !== 'cancelled');
 
-    // Group by product - total quantity across all customers
-    const breakdown: Record<string, { productName: string; totalKg: number; totalTrays: number; totalTubs: number }> = {};
+    // Group by meatType + spiceType + category
+    const breakdown: Record<string, {
+      meatType: MeatType;
+      spiceType: SpiceType;
+      category: string;
+      totalKg: number;
+      totalTrays: number;
+      totalTubs: number
+    }> = {};
 
     todayOrders.forEach(order => {
       order.items.forEach(item => {
-        if (!breakdown[item.productId]) {
-          breakdown[item.productId] = { productName: item.productName, totalKg: 0, totalTrays: 0, totalTubs: 0 };
+        // Find product config to get meat type and spice type
+        const productConfig = ALL_PRODUCTS.find(p => p.id === item.productId);
+        if (!productConfig) return;
+
+        const { meatType, spiceType, category } = productConfig;
+        // Create key: e.g., "chicken-normal-sausage", "beef-mild-sausage"
+        const key = `${meatType}-${spiceType}-${category}`;
+
+        if (!breakdown[key]) {
+          breakdown[key] = { meatType, spiceType, category, totalKg: 0, totalTrays: 0, totalTubs: 0 };
         }
 
-        breakdown[item.productId].totalKg += item.quantityKg;
-        breakdown[item.productId].totalTrays += item.trays;
-        breakdown[item.productId].totalTubs += item.tubs;
+        breakdown[key].totalKg += item.quantityKg;
+        breakdown[key].totalTrays += item.trays;
+        breakdown[key].totalTubs += item.tubs;
       });
     });
 
-    // Convert to sorted array
+    // Convert to sorted array (by meat type, then spice, then category)
     return Object.entries(breakdown)
-      .map(([productId, data]) => ({ productId, ...data }))
-      .sort((a, b) => a.productName.localeCompare(b.productName));
+      .map(([key, data]) => ({ key, ...data }))
+      .sort((a, b) => {
+        const meatOrder = ['chicken', 'beef', 'lamb', 'veal', 'mixed'];
+        const meatDiff = meatOrder.indexOf(a.meatType) - meatOrder.indexOf(b.meatType);
+        if (meatDiff !== 0) return meatDiff;
+        const spiceDiff = a.spiceType.localeCompare(b.spiceType);
+        if (spiceDiff !== 0) return spiceDiff;
+        return a.category.localeCompare(b.category);
+      });
   }, [orders, today]);
 
   return (
@@ -140,24 +178,35 @@ export function HomePage() {
         )}
       </div>
 
-      {/* Product Totals - Order Breakdown by Meat Type */}
-      {productByCustomer.length > 0 && (
+      {/* Order Breakdown by Meat Type + Spice */}
+      {meatBreakdown.length > 0 && (
         <div className="card bg-white border-2 border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">🥩 Order Breakdown by Product</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">🥩 Order Breakdown by Meat</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-100 border-b-2 border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Product</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Meat Type</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Spice</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Total (kg)</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Trays</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Tubs</th>
                 </tr>
               </thead>
               <tbody>
-                {productByCustomer.map((item, idx) => (
-                  <tr key={item.productId} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="py-3 px-4 font-medium text-gray-800">{item.productName}</td>
+                {meatBreakdown.map((item, idx) => (
+                  <tr key={item.key} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="py-3 px-4 font-medium text-gray-800">{meatLabels[item.meatType]}</td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {item.spiceType !== 'none' && (
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${item.spiceType === 'mild' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {spiceLabels[item.spiceType]}
+                        </span>
+                      )}
+                      {item.spiceType === 'none' && '-'}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600 capitalize">{item.category}</td>
                     <td className="py-3 px-4 text-right font-bold text-primary-600">{item.totalKg.toFixed(1)}</td>
                     <td className="py-3 px-4 text-right text-amber-600">{item.totalTrays > 0 ? item.totalTrays : '-'}</td>
                     <td className="py-3 px-4 text-right text-blue-600">{item.totalTubs > 0 ? item.totalTubs : '-'}</td>
@@ -166,15 +215,15 @@ export function HomePage() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-200 border-t-2 border-gray-300 font-bold">
-                  <td className="py-3 px-4 text-gray-800">TOTAL</td>
+                  <td colSpan={3} className="py-3 px-4 text-gray-800">TOTAL</td>
                   <td className="py-3 px-4 text-right text-primary-700">
-                    {productByCustomer.reduce((sum, p) => sum + p.totalKg, 0).toFixed(1)} kg
+                    {meatBreakdown.reduce((sum, p) => sum + p.totalKg, 0).toFixed(1)} kg
                   </td>
                   <td className="py-3 px-4 text-right text-amber-700">
-                    {productByCustomer.reduce((sum, p) => sum + p.totalTrays, 0)}
+                    {meatBreakdown.reduce((sum, p) => sum + p.totalTrays, 0)}
                   </td>
                   <td className="py-3 px-4 text-right text-blue-700">
-                    {productByCustomer.reduce((sum, p) => sum + p.totalTubs, 0)}
+                    {meatBreakdown.reduce((sum, p) => sum + p.totalTubs, 0)}
                   </td>
                 </tr>
               </tfoot>
