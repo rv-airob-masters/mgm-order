@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore, ALL_PRODUCTS, type MeatType, type SpiceType } from '../store';
+import type { SpicePreference } from '@mgm/shared';
 
 // Labels for meat types
 const meatLabels: Record<MeatType, string> = {
-  chicken: '🐔 Chicken',
-  beef: '🐄 Beef',
-  lamb: '🐑 Lamb',
-  veal: '🐮 Veal',
-  mixed: '🍖 Mixed',
+  chicken: 'Chicken',
+  beef: 'Beef',
+  lamb: 'Lamb',
+  veal: 'Veal',
+  mixed: 'Mixed',
 };
 
 // Labels for spice types
@@ -19,7 +20,7 @@ const spiceLabels: Record<SpiceType, string> = {
 };
 
 export function HomePage() {
-  const { orders } = useAppStore();
+  const { orders, customers } = useAppStore();
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
@@ -41,11 +42,11 @@ export function HomePage() {
     };
   }, [orders, today]);
 
-  // Calculate breakdown by MEAT TYPE + SPICE TYPE for today
+  // Calculate breakdown by MEAT TYPE + CUSTOMER'S SPICE PREFERENCE for today
   const meatBreakdown = useMemo(() => {
     const todayOrders = orders.filter(o => o.orderDate === today && o.status !== 'cancelled');
 
-    // Group by meatType + spiceType + category
+    // Group by meatType + spicePreference (from customer) + category
     const breakdown: Record<string, {
       meatType: MeatType;
       spiceType: SpiceType;
@@ -56,12 +57,18 @@ export function HomePage() {
     }> = {};
 
     todayOrders.forEach(order => {
+      // Get customer's spice preference
+      const customer = customers.find(c => c.id === order.customerId);
+      const customerSpice: SpicePreference = customer?.spicePreference || 'normal';
+
       order.items.forEach(item => {
-        // Find product config to get meat type and spice type
+        // Find product config to get meat type and category
         const productConfig = ALL_PRODUCTS.find(p => p.id === item.productId);
         if (!productConfig) return;
 
-        const { meatType, spiceType, category } = productConfig;
+        const { meatType, category } = productConfig;
+        // Use customer's spice preference for sausages, 'none' for burgers/meatballs
+        const spiceType: SpiceType = category === 'sausage' ? customerSpice : 'none';
         // Create key: e.g., "chicken-normal-sausage", "beef-mild-sausage"
         const key = `${meatType}-${spiceType}-${category}`;
 
@@ -86,7 +93,7 @@ export function HomePage() {
         if (spiceDiff !== 0) return spiceDiff;
         return a.category.localeCompare(b.category);
       });
-  }, [orders, today]);
+  }, [orders, customers, today]);
 
   return (
     <div className="max-w-4xl mx-auto">

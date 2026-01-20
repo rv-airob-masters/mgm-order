@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Customer, PackType } from '@mgm/shared';
+import type { Customer, PackType, SpicePreference } from '@mgm/shared';
 import { useAppStore } from '../store';
 import { useAuth } from '../lib/auth';
 
@@ -30,6 +30,7 @@ export function CustomersPage() {
     address: '',
     specialInstructions: '',
     defaultSausagePackType: 'tray' as PackType,
+    spicePreference: 'normal' as SpicePreference,
   });
 
   const filteredCustomers = customers.filter(c =>
@@ -51,6 +52,7 @@ export function CustomersPage() {
       address: newCustomer.address.trim() || null,
       specialInstructions: newCustomer.specialInstructions.trim() || null,
       defaultSausagePackType: newCustomer.defaultSausagePackType,
+      spicePreference: newCustomer.spicePreference,
       isActive: true,
       syncStatus: 'pending',
       createdAt: new Date(),
@@ -66,6 +68,7 @@ export function CustomersPage() {
       address: '',
       specialInstructions: '',
       defaultSausagePackType: 'tray',
+      spicePreference: 'normal',
     });
   };
 
@@ -121,14 +124,23 @@ export function CustomersPage() {
               )}
             </div>
 
-            {/* Pack type badge */}
-            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mb-3 ${
-              customer.defaultSausagePackType === 'tray'
-                ? 'bg-green-200 text-green-800'
-                : 'bg-blue-200 text-blue-800'
-            }`}>
-              {customer.defaultSausagePackType.toUpperCase()}
-            </span>
+            {/* Pack type and spice preference badges */}
+            <div className="flex gap-2 mb-3">
+              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                customer.defaultSausagePackType === 'tray'
+                  ? 'bg-green-200 text-green-800'
+                  : 'bg-blue-200 text-blue-800'
+              }`}>
+                {customer.defaultSausagePackType.toUpperCase()}
+              </span>
+              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                customer.spicePreference === 'mild'
+                  ? 'bg-green-200 text-green-800'
+                  : 'bg-red-200 text-red-800'
+              }`}>
+                {customer.spicePreference === 'mild' ? '🌿 Mild' : '🔥 Normal'}
+              </span>
+            </div>
 
             {/* Contact info */}
             <div className="space-y-1 text-sm">
@@ -241,6 +253,36 @@ export function CustomersPage() {
                     onClick={() => setNewCustomer(prev => ({ ...prev, defaultSausagePackType: 'tub' }))}
                   >
                     Tub
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Spice Preference 🌶️
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      newCustomer.spicePreference === 'normal'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setNewCustomer(prev => ({ ...prev, spicePreference: 'normal' }))}
+                  >
+                    🔥 Normal
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      newCustomer.spicePreference === 'mild'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setNewCustomer(prev => ({ ...prev, spicePreference: 'mild' }))}
+                  >
+                    🌿 Mild
                   </button>
                 </div>
               </div>

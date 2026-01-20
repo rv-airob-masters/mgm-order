@@ -24,11 +24,11 @@ const tileBgColors: Record<Category, string> = {
 };
 
 const meatTypeLabels: Record<MeatType, string> = {
-  chicken: '🐔 Chicken',
-  beef: '🐄 Beef',
-  lamb: '🐑 Lamb',
-  veal: '🐮 Veal',
-  mixed: '🍖 Mixed',
+  chicken: 'Chicken',
+  beef: 'Beef',
+  lamb: 'Lamb',
+  veal: 'Veal',
+  mixed: 'Mixed',
 };
 
 const spiceTypeLabels: Record<SpiceType, string> = {
@@ -301,11 +301,11 @@ export function ProductsPage() {
                     value={newProduct.meatType}
                     onChange={e => setNewProduct({ ...newProduct, meatType: e.target.value as MeatType })}
                   >
-                    <option value="chicken">🐔 Chicken</option>
-                    <option value="beef">🐄 Beef</option>
-                    <option value="lamb">🐑 Lamb</option>
-                    <option value="veal">🐮 Veal</option>
-                    <option value="mixed">🍖 Mixed</option>
+                    <option value="chicken">Chicken</option>
+                    <option value="beef">Beef</option>
+                    <option value="lamb">Lamb</option>
+                    <option value="veal">Veal</option>
+                    <option value="mixed">Mixed</option>
                   </select>
                 </div>
                 <div>
@@ -415,11 +415,11 @@ export function ProductsPage() {
                     value={editingProduct.meatType}
                     onChange={e => setEditingProduct({ ...editingProduct, meatType: e.target.value as MeatType })}
                   >
-                    <option value="chicken">🐔 Chicken</option>
-                    <option value="beef">🐄 Beef</option>
-                    <option value="lamb">🐑 Lamb</option>
-                    <option value="veal">🐮 Veal</option>
-                    <option value="mixed">🍖 Mixed</option>
+                    <option value="chicken">Chicken</option>
+                    <option value="beef">Beef</option>
+                    <option value="lamb">Lamb</option>
+                    <option value="veal">Veal</option>
+                    <option value="mixed">Mixed</option>
                   </select>
                 </div>
                 <div>

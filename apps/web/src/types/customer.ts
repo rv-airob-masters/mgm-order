@@ -2,6 +2,7 @@
 
 export type PackType = 'tray' | 'tub';
 export type SyncStatus = 'pending' | 'synced' | 'conflict';
+export type SpicePreference = 'mild' | 'normal';
 
 export interface Customer {
   id: string;
@@ -11,6 +12,7 @@ export interface Customer {
   address: string;
   specialInstructions: string;
   defaultSausagePackType: PackType;
+  spicePreference: SpicePreference;  // Customer's preferred spice level for sausages
   isActive: boolean;
   syncStatus: SyncStatus;
   createdAt: Date;

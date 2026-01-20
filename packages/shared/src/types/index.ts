@@ -12,6 +12,7 @@ export type ProductType = 'sausage' | 'burger';
 export type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
 export type SyncStatus = 'pending' | 'synced' | 'conflict';
 export type UserRole = 'admin' | 'operator' | 'viewer';
+export type SpicePreference = 'mild' | 'normal';
 
 // =====================================================
 // PRODUCT CATEGORY
@@ -60,6 +61,7 @@ export interface Customer {
   address: string | null;
   specialInstructions: string | null;
   defaultSausagePackType: PackType;
+  spicePreference: SpicePreference;  // Customer's preferred spice level for sausages
   isActive: boolean;
   syncStatus: SyncStatus;
   createdAt: Date;

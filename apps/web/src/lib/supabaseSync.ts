@@ -194,6 +194,7 @@ interface DbCustomer {
   address: string | null;
   special_instructions: string | null;
   default_sausage_pack_type: 'tray' | 'tub';
+  spice_preference: 'mild' | 'normal';
   is_active: boolean;
   sync_status: 'pending' | 'synced' | 'conflict';
   created_at?: string;
@@ -209,6 +210,7 @@ function toDbCustomer(customer: Customer): DbCustomer {
     address: customer.address,
     special_instructions: customer.specialInstructions,
     default_sausage_pack_type: customer.defaultSausagePackType,
+    spice_preference: customer.spicePreference,
     is_active: customer.isActive,
     sync_status: customer.syncStatus,
   };
@@ -223,6 +225,7 @@ function fromDbCustomer(db: DbCustomer): Customer {
     address: db.address ?? '',
     specialInstructions: db.special_instructions ?? '',
     defaultSausagePackType: db.default_sausage_pack_type ?? 'tray',
+    spicePreference: db.spice_preference ?? 'normal',
     isActive: db.is_active ?? true,
     syncStatus: db.sync_status ?? 'synced',
     createdAt: db.created_at ? new Date(db.created_at) : new Date(),
