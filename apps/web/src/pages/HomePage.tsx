@@ -25,20 +25,86 @@ export function HomePage() {
     };
   }, [orders, today]);
 
+  // Calculate product breakdown by customer for today
+  const productByCustomer = useMemo(() => {
+    const todayOrders = orders.filter(o => o.orderDate === today && o.status !== 'cancelled');
+
+    // Group by product, then by customer
+    const breakdown: Record<string, { productName: string; customers: Record<string, { name: string; qty: number; unit: string }> }> = {};
+
+    todayOrders.forEach(order => {
+      order.items.forEach(item => {
+        if (!breakdown[item.productId]) {
+          breakdown[item.productId] = { productName: item.productName, customers: {} };
+        }
+
+        const customerId = order.customerId;
+        if (!breakdown[item.productId].customers[customerId]) {
+          // Determine unit based on pack type
+          let unit = 'kg';
+          if (item.trays > 0 && item.tubs === 0) {
+            unit = 'trays';
+          } else if (item.tubs > 0) {
+            unit = 'tubs';
+          }
+          breakdown[item.productId].customers[customerId] = {
+            name: order.customerName,
+            qty: 0,
+            unit
+          };
+        }
+
+        // Add quantity (use trays if tray order, tubs if tub order, otherwise kg)
+        const existing = breakdown[item.productId].customers[customerId];
+        if (existing.unit === 'trays') {
+          existing.qty += item.trays;
+        } else if (existing.unit === 'tubs') {
+          existing.qty += item.tubs;
+        } else {
+          existing.qty += item.quantityKg;
+        }
+      });
+    });
+
+    return breakdown;
+  }, [orders, today]);
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Hero Section */}
-      <div className="text-center py-8">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          🌭 Sausage & Burger Packing Assistant 🍔
+      <div className="text-center py-6">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          🌭 MGM Packing Assistant 🍔
         </h1>
-        <p className="text-lg text-gray-600">
-          Calculate packing requirements for your orders quickly and accurately
-        </p>
       </div>
 
-      {/* Today's Dashboard */}
-      <div className="card bg-gradient-to-r from-primary-50 to-blue-50 border-2 border-primary-200 mb-8">
+      {/* Quick Actions - NEW ORDER & ORDER HISTORY AT TOP */}
+      <div className="grid md:grid-cols-2 gap-4 mb-8">
+        <Link
+          to="/customers"
+          className="card hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 border-primary-100 hover:border-primary-400 py-8"
+        >
+          <div className="text-4xl mb-3 text-center">📝</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-1 text-center">New Order</h2>
+          <p className="text-gray-600 text-center text-sm">
+            Create a new packing order
+          </p>
+        </Link>
+
+        <Link
+          to="/orders"
+          className="card hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 border-gray-100 hover:border-gray-300 py-8"
+        >
+          <div className="text-4xl mb-3 text-center">📋</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-1 text-center">Order History</h2>
+          <p className="text-gray-600 text-center text-sm">
+            View and manage past orders
+          </p>
+        </Link>
+      </div>
+
+      {/* Today's Dashboard - NOW BELOW QUICK ACTIONS */}
+      <div className="card bg-gradient-to-r from-primary-50 to-blue-50 border-2 border-primary-200 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">📊 Today's Dashboard</h2>
           <span className="text-sm text-gray-500">{today}</span>
@@ -93,30 +159,29 @@ export function HomePage() {
         )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Link
-          to="/customers"
-          className="card hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 border-primary-100 hover:border-primary-400 py-10"
-        >
-          <div className="text-5xl mb-4 text-center">📝</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">New Order</h2>
-          <p className="text-gray-600 text-center text-sm">
-            Create a new packing order for a customer
-          </p>
-        </Link>
-
-        <Link
-          to="/orders"
-          className="card hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 border-gray-100 hover:border-gray-300 py-10"
-        >
-          <div className="text-5xl mb-4 text-center">📋</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">Order History</h2>
-          <p className="text-gray-600 text-center text-sm">
-            View and manage past orders
-          </p>
-        </Link>
-      </div>
+      {/* Product Breakdown by Customer */}
+      {Object.keys(productByCustomer).length > 0 && (
+        <div className="card bg-white border-2 border-gray-200">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">📦 Product Breakdown by Customer</h2>
+          <div className="space-y-3">
+            {Object.entries(productByCustomer).map(([productId, { productName, customers }]) => (
+              <div key={productId} className="bg-gray-50 rounded-lg p-3">
+                <div className="font-semibold text-gray-800 mb-2">{productName}</div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(customers).map(([custId, { name, qty, unit }]) => (
+                    <span
+                      key={custId}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800"
+                    >
+                      {name}: <span className="font-bold ml-1">{qty.toFixed(unit === 'kg' ? 1 : 0)} {unit}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

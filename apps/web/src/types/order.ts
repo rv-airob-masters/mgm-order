@@ -1,5 +1,8 @@
 // Order types - shared between store and sync service to avoid circular dependency
 
+// Tub sizes: 1kg and 2kg use shallow tubs, 5kg uses deep tubs
+export type TubSize = '1kg' | '2kg' | '5kg';
+
 export interface OrderItem {
   productId: string;
   productName: string;
@@ -9,7 +12,7 @@ export interface OrderItem {
   tubs: number;
   boxes: number;
   packType: 'tray' | 'tub';
-  tubSize?: '2kg' | '5kg'; // For LMC veal tub size option
+  tubSize?: TubSize; // 1kg, 2kg (shallow tubs) or 5kg (deep tubs)
   trayWeight?: number;
   tubWeight?: number;
   traysPerBox?: number;

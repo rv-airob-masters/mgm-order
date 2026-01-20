@@ -42,7 +42,7 @@ export function EditOrderPage() {
 
   // Initialize quantities from existing order items
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [tubSizes, setTubSizes] = useState<Record<string, '2kg' | '5kg'>>({});
+  const [tubSizes, setTubSizes] = useState<Record<string, '1kg' | '2kg' | '5kg'>>({});
   const [packTypeOverrides, setPackTypeOverrides] = useState<Record<string, 'tray' | 'tub'>>({});
   const [adhocProducts, setAdhocProducts] = useState<CustomerProduct[]>([]);
   const [showAdhocPicker, setShowAdhocPicker] = useState(false);
@@ -56,7 +56,7 @@ export function EditOrderPage() {
   useEffect(() => {
     if (currentOrder?.items) {
       const initialQtys: Record<string, number> = {};
-      const initialTubSizes: Record<string, '2kg' | '5kg'> = {};
+      const initialTubSizes: Record<string, '1kg' | '2kg' | '5kg'> = {};
       const initialPackTypes: Record<string, 'tray' | 'tub'> = {};
 
       currentOrder.items.forEach(item => {
@@ -115,7 +115,7 @@ export function EditOrderPage() {
     setQuantities(prev => ({ ...prev, [productId]: qty }));
   }, []);
 
-  const handleTubSizeChange = useCallback((productId: string, size: '2kg' | '5kg') => {
+  const handleTubSizeChange = useCallback((productId: string, size: '1kg' | '2kg' | '5kg') => {
     setTubSizes(prev => ({ ...prev, [productId]: size }));
   }, []);
 
@@ -169,16 +169,18 @@ export function EditOrderPage() {
       const tubsPerBox = rules.tubsPerBox5kg || 3;
       boxes = skipBoxes ? 0 : Math.ceil(tubs / tubsPerBox);
     } else if (packType === 'tub') {
-      const tubWeight = effectiveTubSize === '2kg' ? 2 : 5;
+      // Tub packing: 1kg and 2kg use shallow tubs, 5kg uses deep tubs
+      const tubWeight = effectiveTubSize === '1kg' ? 1 : effectiveTubSize === '2kg' ? 2 : 5;
       tubs = Math.ceil(qty / tubWeight);
       weightKg = qty;
 
       if (skipBoxes) {
         boxes = 0;
       } else {
-        const tubsPerBox = effectiveTubSize === '2kg'
-          ? (rules.tubsPerBox2kg || 7)
-          : (rules.tubsPerBox5kg || 3);
+        // 1kg and 2kg both use shallow tubs (same tubs per box)
+        const tubsPerBox = effectiveTubSize === '5kg'
+          ? (rules.tubsPerBox5kg || 3)
+          : (rules.tubsPerBox2kg || 7);
 
         // Simple calculation: boxes = tubs / tubsPerBox (rounded up)
         boxes = Math.ceil(tubs / tubsPerBox);
@@ -306,28 +308,16 @@ export function EditOrderPage() {
         <h2 className="font-semibold text-gray-700">📦 Order Items</h2>
         {activeProducts.map(product => {
           const result = results.find(r => r.productId === product.productId);
-          const isLMC = currentOrder.customerId === 'lmc' || currentOrder.customerName.toLowerCase() === 'lmc';
-          const showTubSizeToggle = isLMC && (product.productId === 'veal-sausage' || product.productId === 'beef-meatballs');
           const effectivePackType = getEffectivePackType(product);
+          // Show tub size toggle when tub pack type is selected
+          const showTubSizeToggle = effectivePackType === 'tub';
+          const currentTubSize = tubSizes[product.productId] || '5kg';
 
           return (
             <div key={product.productId} className="card flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[120px]">
                 <span className="font-medium">{product.productName}</span>
               </div>
-
-              {showTubSizeToggle && (
-                <div className="flex gap-1">
-                  <button
-                    className={`px-2 py-1 text-xs rounded font-medium ${(tubSizes[product.productId] || '5kg') === '2kg' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}
-                    onClick={() => handleTubSizeChange(product.productId, '2kg')}
-                  >2kg</button>
-                  <button
-                    className={`px-2 py-1 text-xs rounded font-medium ${(tubSizes[product.productId] || '5kg') === '5kg' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}
-                    onClick={() => handleTubSizeChange(product.productId, '5kg')}
-                  >5kg</button>
-                </div>
-              )}
 
               {/* Pack type toggle (Tray/Tub) */}
               <div className="flex gap-1">
@@ -340,6 +330,27 @@ export function EditOrderPage() {
                   onClick={() => handlePackTypeChange(product.productId, 'tub')}
                 >TUB</button>
               </div>
+
+              {/* Tub Size Toggle - shows when TUB is selected */}
+              {showTubSizeToggle && (
+                <div className="flex gap-1">
+                  <button
+                    className={`px-2 py-1 text-xs rounded font-medium ${currentTubSize === '1kg' ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                    onClick={() => handleTubSizeChange(product.productId, '1kg')}
+                    title="1kg shallow tub"
+                  >1kg</button>
+                  <button
+                    className={`px-2 py-1 text-xs rounded font-medium ${currentTubSize === '2kg' ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                    onClick={() => handleTubSizeChange(product.productId, '2kg')}
+                    title="2kg shallow tub"
+                  >2kg</button>
+                  <button
+                    className={`px-2 py-1 text-xs rounded font-medium ${currentTubSize === '5kg' ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                    onClick={() => handleTubSizeChange(product.productId, '5kg')}
+                    title="5kg deep tub"
+                  >5kg</button>
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <input
