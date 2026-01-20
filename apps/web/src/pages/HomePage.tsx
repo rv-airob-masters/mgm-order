@@ -29,44 +29,25 @@ export function HomePage() {
   const productByCustomer = useMemo(() => {
     const todayOrders = orders.filter(o => o.orderDate === today && o.status !== 'cancelled');
 
-    // Group by product, then by customer
-    const breakdown: Record<string, { productName: string; customers: Record<string, { name: string; qty: number; unit: string }> }> = {};
+    // Group by product - total quantity across all customers
+    const breakdown: Record<string, { productName: string; totalKg: number; totalTrays: number; totalTubs: number }> = {};
 
     todayOrders.forEach(order => {
       order.items.forEach(item => {
         if (!breakdown[item.productId]) {
-          breakdown[item.productId] = { productName: item.productName, customers: {} };
+          breakdown[item.productId] = { productName: item.productName, totalKg: 0, totalTrays: 0, totalTubs: 0 };
         }
 
-        const customerId = order.customerId;
-        if (!breakdown[item.productId].customers[customerId]) {
-          // Determine unit based on pack type
-          let unit = 'kg';
-          if (item.trays > 0 && item.tubs === 0) {
-            unit = 'trays';
-          } else if (item.tubs > 0) {
-            unit = 'tubs';
-          }
-          breakdown[item.productId].customers[customerId] = {
-            name: order.customerName,
-            qty: 0,
-            unit
-          };
-        }
-
-        // Add quantity (use trays if tray order, tubs if tub order, otherwise kg)
-        const existing = breakdown[item.productId].customers[customerId];
-        if (existing.unit === 'trays') {
-          existing.qty += item.trays;
-        } else if (existing.unit === 'tubs') {
-          existing.qty += item.tubs;
-        } else {
-          existing.qty += item.quantityKg;
-        }
+        breakdown[item.productId].totalKg += item.quantityKg;
+        breakdown[item.productId].totalTrays += item.trays;
+        breakdown[item.productId].totalTubs += item.tubs;
       });
     });
 
-    return breakdown;
+    // Convert to sorted array
+    return Object.entries(breakdown)
+      .map(([productId, data]) => ({ productId, ...data }))
+      .sort((a, b) => a.productName.localeCompare(b.productName));
   }, [orders, today]);
 
   return (
@@ -159,26 +140,45 @@ export function HomePage() {
         )}
       </div>
 
-      {/* Product Breakdown by Customer */}
-      {Object.keys(productByCustomer).length > 0 && (
+      {/* Product Totals - Order Breakdown by Meat Type */}
+      {productByCustomer.length > 0 && (
         <div className="card bg-white border-2 border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">📦 Product Breakdown by Customer</h2>
-          <div className="space-y-3">
-            {Object.entries(productByCustomer).map(([productId, { productName, customers }]) => (
-              <div key={productId} className="bg-gray-50 rounded-lg p-3">
-                <div className="font-semibold text-gray-800 mb-2">{productName}</div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(customers).map(([custId, { name, qty, unit }]) => (
-                    <span
-                      key={custId}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800"
-                    >
-                      {name}: <span className="font-bold ml-1">{qty.toFixed(unit === 'kg' ? 1 : 0)} {unit}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+          <h2 className="text-lg font-bold text-gray-800 mb-4">🥩 Order Breakdown by Product</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-100 border-b-2 border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Product</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Total (kg)</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Trays</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Tubs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productByCustomer.map((item, idx) => (
+                  <tr key={item.productId} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="py-3 px-4 font-medium text-gray-800">{item.productName}</td>
+                    <td className="py-3 px-4 text-right font-bold text-primary-600">{item.totalKg.toFixed(1)}</td>
+                    <td className="py-3 px-4 text-right text-amber-600">{item.totalTrays > 0 ? item.totalTrays : '-'}</td>
+                    <td className="py-3 px-4 text-right text-blue-600">{item.totalTubs > 0 ? item.totalTubs : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-200 border-t-2 border-gray-300 font-bold">
+                  <td className="py-3 px-4 text-gray-800">TOTAL</td>
+                  <td className="py-3 px-4 text-right text-primary-700">
+                    {productByCustomer.reduce((sum, p) => sum + p.totalKg, 0).toFixed(1)} kg
+                  </td>
+                  <td className="py-3 px-4 text-right text-amber-700">
+                    {productByCustomer.reduce((sum, p) => sum + p.totalTrays, 0)}
+                  </td>
+                  <td className="py-3 px-4 text-right text-blue-700">
+                    {productByCustomer.reduce((sum, p) => sum + p.totalTubs, 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       )}
