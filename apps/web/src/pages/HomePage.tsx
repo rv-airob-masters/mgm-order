@@ -53,7 +53,8 @@ export function HomePage() {
       category: string;
       totalKg: number;
       totalTrays: number;
-      totalTubs: number
+      totalTubs: number;
+      totalBoxes: number;
     }> = {};
 
     todayOrders.forEach(order => {
@@ -73,12 +74,13 @@ export function HomePage() {
         const key = `${meatType}-${spiceType}-${category}`;
 
         if (!breakdown[key]) {
-          breakdown[key] = { meatType, spiceType, category, totalKg: 0, totalTrays: 0, totalTubs: 0 };
+          breakdown[key] = { meatType, spiceType, category, totalKg: 0, totalTrays: 0, totalTubs: 0, totalBoxes: 0 };
         }
 
         breakdown[key].totalKg += item.quantityKg;
         breakdown[key].totalTrays += item.trays;
         breakdown[key].totalTubs += item.tubs;
+        breakdown[key].totalBoxes += item.boxes;
       });
     });
 
@@ -199,6 +201,7 @@ export function HomePage() {
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Total (kg)</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Trays</th>
                   <th className="text-right py-3 px-4 font-semibold text-gray-700">Tubs</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Boxes</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,6 +220,7 @@ export function HomePage() {
                     <td className="py-3 px-4 text-right font-bold text-primary-600">{item.totalKg.toFixed(1)}</td>
                     <td className="py-3 px-4 text-right text-amber-600">{item.totalTrays > 0 ? item.totalTrays : '-'}</td>
                     <td className="py-3 px-4 text-right text-blue-600">{item.totalTubs > 0 ? item.totalTubs : '-'}</td>
+                    <td className="py-3 px-4 text-right text-green-600">{item.totalBoxes > 0 ? item.totalBoxes : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -231,6 +235,9 @@ export function HomePage() {
                   </td>
                   <td className="py-3 px-4 text-right text-blue-700">
                     {meatBreakdown.reduce((sum, p) => sum + p.totalTubs, 0)}
+                  </td>
+                  <td className="py-3 px-4 text-right text-green-700">
+                    {meatBreakdown.reduce((sum, p) => sum + p.totalBoxes, 0)}
                   </td>
                 </tr>
               </tfoot>

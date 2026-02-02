@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { useAppStore, CUSTOMER_RULES, ALL_PRODUCTS, type OrderItem, type CustomerProduct, type Order } from '../store';
+import { useAppStore, CUSTOMER_RULES, ALL_PRODUCTS, type OrderItem, type CustomerProduct, type Order, type ProductConfig } from '../store';
 
 // Calculation result interface
 interface CalcResult {
@@ -23,7 +23,36 @@ export function EditOrderPage() {
   const navigate = useNavigate();
   const order = location.state?.order as Order | undefined;
   const customer = location.state?.customer;
-  const { updateOrder, orders } = useAppStore();
+  const { updateOrder, orders, products: storeProducts } = useAppStore();
+
+  // Combine hardcoded ALL_PRODUCTS with dynamic store products
+  const allAvailableProducts = useMemo(() => {
+    const productMap = new Map<string, ProductConfig>();
+
+    // First, add all hardcoded products
+    ALL_PRODUCTS.forEach(p => productMap.set(p.id, p));
+
+    // Then, add/override with store products
+    storeProducts.forEach(p => {
+      const config: ProductConfig = {
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        meatType: p.meatType,
+        spiceType: p.spiceType,
+        trayWeightKg: p.trayWeightKg,
+        traysPerBox: p.traysPerBox,
+        tubWeightKg5: p.tubWeightKg5,
+        tubWeightKg2: p.tubWeightKg2,
+        tubsPerBox5kg: p.tubsPerBox5kg,
+        tubsPerBox2kg: p.tubsPerBox2kg,
+        countPerTub: p.countPerTub,
+      };
+      productMap.set(p.id, config);
+    });
+
+    return Array.from(productMap.values());
+  }, [storeProducts]);
 
   // If no order in state, try to find it in store
   const currentOrder = order || orders.find(o => o.id === orderId);
@@ -44,6 +73,8 @@ export function EditOrderPage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [tubSizes, setTubSizes] = useState<Record<string, '1kg' | '2kg' | '5kg'>>({});
   const [packTypeOverrides, setPackTypeOverrides] = useState<Record<string, 'tray' | 'tub'>>({});
+  // State for order-by override per product (kg vs trays vs count/packets)
+  const [orderByOverrides, setOrderByOverrides] = useState<Record<string, 'kg' | 'trays' | 'count'>>({});
   const [adhocProducts, setAdhocProducts] = useState<CustomerProduct[]>([]);
   const [showAdhocPicker, setShowAdhocPicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -107,8 +138,8 @@ export function EditOrderPage() {
 
   const availableAdhocProducts = useMemo(() => {
     const activeIds = new Set(activeProducts.map(p => p.productId));
-    return ALL_PRODUCTS.filter(p => !activeIds.has(p.id));
-  }, [activeProducts]);
+    return allAvailableProducts.filter(p => !activeIds.has(p.id));
+  }, [activeProducts, allAvailableProducts]);
 
   const handleQtyChange = useCallback((productId: string, value: string) => {
     const qty = parseFloat(value) || 0;
@@ -121,6 +152,10 @@ export function EditOrderPage() {
 
   const handlePackTypeChange = useCallback((productId: string, packType: 'tray' | 'tub') => {
     setPackTypeOverrides(prev => ({ ...prev, [productId]: packType }));
+  }, []);
+
+  const handleOrderByChange = useCallback((productId: string, orderBy: 'kg' | 'trays' | 'count') => {
+    setOrderByOverrides(prev => ({ ...prev, [productId]: orderBy }));
   }, []);
 
   const addAdhocProduct = (product: { id: string; name: string }) => {
@@ -140,16 +175,17 @@ export function EditOrderPage() {
     custProduct: CustomerProduct,
     qty: number,
     tubSize?: '2kg' | '5kg',
-    packTypeOverride?: 'tray' | 'tub'
+    packTypeOverride?: 'tray' | 'tub',
+    orderByOverride?: 'kg' | 'trays' | 'count'
   ): CalcResult | null => {
     if (qty <= 0) return null;
 
-    const product = ALL_PRODUCTS.find(p => p.id === custProduct.productId);
+    const product = allAvailableProducts.find(p => p.id === custProduct.productId);
     if (!product) return null;
 
     const rules = customerRules?.packingRules || {};
     const packType = packTypeOverride || custProduct.packType;
-    const orderBy = custProduct.orderBy;
+    const orderBy = orderByOverride || custProduct.orderBy;
     const effectiveTubSize = tubSize || custProduct.tubSize || '5kg';
     const skipBoxes = noBoxes;
 
@@ -162,12 +198,24 @@ export function EditOrderPage() {
       trays = qty;
       weightKg = trays * product.trayWeightKg;
       boxes = skipBoxes ? 0 : Math.ceil(trays / product.traysPerBox);
-    } else if (orderBy === 'count' && product.category === 'meatball') {
-      const countPerTub = product.countPerTub || 20;
-      tubs = Math.ceil(qty / countPerTub);
-      weightKg = tubs * product.tubWeightKg5;
-      const tubsPerBox = rules.tubsPerBox5kg || 3;
-      boxes = skipBoxes ? 0 : Math.ceil(tubs / tubsPerBox);
+    } else if (orderBy === 'count') {
+      // Order by count/packets
+      if (product.category === 'meatball') {
+        // Meatballs: count = individual meatball count (e.g., 20 meatballs)
+        // Divide by countPerTub to get number of tubs needed
+        const countPerTub = product.countPerTub || 20;
+        tubs = Math.ceil(qty / countPerTub);
+        weightKg = tubs * product.tubWeightKg5; // Approximate weight
+        const tubsPerBox = rules.tubsPerBox5kg || 3;
+        boxes = skipBoxes ? 0 : Math.ceil(tubs / tubsPerBox);
+      } else {
+        // Sausages/Burgers: count = number of trays/packets
+        // e.g., 10 chicken sausage = 10 trays (each tray ~400g with 6 sausages)
+        trays = qty;
+        weightKg = trays * product.trayWeightKg;
+        const traysPerBox = rules.traysPerBox || product.traysPerBox;
+        boxes = skipBoxes ? 0 : Math.ceil(trays / traysPerBox);
+      }
     } else if (packType === 'tub') {
       // Tub packing: 1kg and 2kg use shallow tubs, 5kg uses deep tubs
       const tubWeight = effectiveTubSize === '1kg' ? 1 : effectiveTubSize === '2kg' ? 2 : 5;
@@ -205,7 +253,7 @@ export function EditOrderPage() {
       packType,
       orderBy,
       inputQty: qty,
-      inputUnit: orderBy === 'trays' ? 'trays' : orderBy === 'count' ? 'count' : 'kg',
+      inputUnit: orderBy === 'trays' ? 'trays' : orderBy === 'count' ? 'pcs' : 'kg',
       weightKg,
       trays,
       tubs,
@@ -216,10 +264,10 @@ export function EditOrderPage() {
 
   const results = useMemo(() => {
     return activeProducts
-      .map(p => calculateProduct(p, quantities[p.productId] || 0, tubSizes[p.productId], packTypeOverrides[p.productId]))
+      .map(p => calculateProduct(p, quantities[p.productId] || 0, tubSizes[p.productId], packTypeOverrides[p.productId], orderByOverrides[p.productId]))
       .filter((r): r is CalcResult => r !== null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProducts, quantities, tubSizes, packTypeOverrides, customerRules, noBoxes]);
+  }, [activeProducts, quantities, tubSizes, packTypeOverrides, orderByOverrides, customerRules, noBoxes, allAvailableProducts]);
 
   const totals = useMemo(() => results.reduce((acc, r) => ({
     weight: acc.weight + r.weightKg,
@@ -305,13 +353,15 @@ export function EditOrderPage() {
 
       {/* Products */}
       <div className="space-y-3 mb-6">
-        <h2 className="font-semibold text-gray-700">📦 Order Items</h2>
+        <h2 className="font-semibold text-gray-700">Order Items</h2>
         {activeProducts.map(product => {
           const result = results.find(r => r.productId === product.productId);
           const effectivePackType = getEffectivePackType(product);
           // Show tub size toggle when tub pack type is selected
           const showTubSizeToggle = effectivePackType === 'tub';
           const currentTubSize = tubSizes[product.productId] || '5kg';
+          // Get effective order-by (kg or trays) - only for tray pack type
+          const effectiveOrderBy = orderByOverrides[product.productId] || product.orderBy;
 
           return (
             <div key={product.productId} className="card flex flex-wrap items-center gap-3">
@@ -329,6 +379,27 @@ export function EditOrderPage() {
                   className={`px-2 py-1 text-xs rounded font-medium ${effectivePackType === 'tub' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}
                   onClick={() => handlePackTypeChange(product.productId, 'tub')}
                 >TUB</button>
+              </div>
+
+              {/* Order-by Toggle (kg vs trays/tubs vs pcs) */}
+              <div className="flex gap-1">
+                <button
+                  className={`px-2 py-1 text-xs rounded font-medium ${effectiveOrderBy === 'kg' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                  onClick={() => handleOrderByChange(product.productId, 'kg')}
+                  title="Order by kilograms"
+                >by kg</button>
+                {effectivePackType === 'tray' && (
+                  <button
+                    className={`px-2 py-1 text-xs rounded font-medium ${effectiveOrderBy === 'trays' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                    onClick={() => handleOrderByChange(product.productId, 'trays')}
+                    title="Order by number of trays"
+                  >by trays</button>
+                )}
+                <button
+                  className={`px-2 py-1 text-xs rounded font-medium ${effectiveOrderBy === 'count' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                  onClick={() => handleOrderByChange(product.productId, 'count')}
+                  title="Order by packets/pieces"
+                >by pcs</button>
               </div>
 
               {/* Tub Size Toggle - shows when TUB is selected */}
@@ -355,13 +426,13 @@ export function EditOrderPage() {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  step={product.orderBy === 'count' ? '1' : '0.1'}
+                  step={effectiveOrderBy === 'count' ? '1' : effectiveOrderBy === 'trays' ? '1' : '0.1'}
                   placeholder="0"
                   className="input w-20 text-right"
                   value={quantities[product.productId] || ''}
                   onChange={(e) => handleQtyChange(product.productId, e.target.value)}
                 />
-                <span className="text-gray-500 text-sm w-8">{getUnitLabel(product.orderBy)}</span>
+                <span className="text-gray-500 text-sm w-8">{getUnitLabel(effectiveOrderBy)}</span>
               </div>
 
               {result && (
