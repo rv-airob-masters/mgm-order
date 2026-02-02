@@ -128,6 +128,34 @@ export function NewOrderPage() {
     setShowAdhocPicker(false);
   };
 
+  // Remove item from order (clear quantity and remove from adhoc if applicable)
+  const handleRemoveItem = useCallback((productId: string) => {
+    // Clear the quantity
+    setQuantities(prev => {
+      const newQty = { ...prev };
+      delete newQty[productId];
+      return newQty;
+    });
+    // Remove from adhoc products if it's an adhoc item
+    setAdhocProducts(prev => prev.filter(p => p.productId !== productId));
+    // Clear any overrides
+    setPackTypeOverrides(prev => {
+      const newOverrides = { ...prev };
+      delete newOverrides[productId];
+      return newOverrides;
+    });
+    setOrderByOverrides(prev => {
+      const newOverrides = { ...prev };
+      delete newOverrides[productId];
+      return newOverrides;
+    });
+    setTubSizes(prev => {
+      const newSizes = { ...prev };
+      delete newSizes[productId];
+      return newSizes;
+    });
+  }, []);
+
   // Calculate packing for each product
   const calculateProduct = (
     custProduct: CustomerProduct,
@@ -197,13 +225,20 @@ export function NewOrderPage() {
     } else {
       // Tray packing
       const trayWeight = product.trayWeightKg;
-      trays = Math.ceil(qty / trayWeight);
       weightKg = qty;
 
-      // Haji Baba special rule: round DOWN to multiple of 20
-      if (rules.roundingRule === 'down' && rules.roundToMultiple) {
+      // Check rounding rule
+      if (rules.roundingRule === 'none') {
+        // No rounding - exact division (e.g., Haji Baba: 210kg / 0.4kg = 525 trays)
+        trays = qty / trayWeight;
+      } else if (rules.roundingRule === 'down' && rules.roundToMultiple) {
+        // Round DOWN to multiple
+        trays = Math.ceil(qty / trayWeight);
         trays = Math.floor(trays / rules.roundToMultiple) * rules.roundToMultiple;
         weightKg = trays * trayWeight;
+      } else {
+        // Default: round up
+        trays = Math.ceil(qty / trayWeight);
       }
 
       const traysPerBox = rules.traysPerBox || product.traysPerBox;
@@ -322,6 +357,9 @@ export function NewOrderPage() {
           const currentTubSize = tubSizes[product.productId] || '5kg';
           // Get effective order-by (kg or trays) - only for tray pack type
           const effectiveOrderBy = orderByOverrides[product.productId] || product.orderBy;
+          // Check if product is a meatball (only meatballs can order by count)
+          const productConfig = allAvailableProducts.find(p => p.id === product.productId);
+          const isMeatball = productConfig?.category === 'meatball';
 
           return (
             <div key={product.productId} className="card flex flex-wrap items-center gap-3">
@@ -341,7 +379,7 @@ export function NewOrderPage() {
                 >TUB</button>
               </div>
 
-              {/* Order-by Toggle (kg vs trays/tubs vs pcs) */}
+              {/* Order-by Toggle (kg vs trays) - show count only for meatballs */}
               <div className="flex gap-1">
                 <button
                   className={`px-2 py-1 text-xs rounded font-medium ${effectiveOrderBy === 'kg' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`}
@@ -355,11 +393,13 @@ export function NewOrderPage() {
                     title="Order by number of trays"
                   >by trays</button>
                 )}
-                <button
-                  className={`px-2 py-1 text-xs rounded font-medium ${effectiveOrderBy === 'count' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`}
-                  onClick={() => handleOrderByChange(product.productId, 'count')}
-                  title="Order by packets/pieces"
-                >by pcs</button>
+                {isMeatball && (
+                  <button
+                    className={`px-2 py-1 text-xs rounded font-medium ${effectiveOrderBy === 'count' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`}
+                    onClick={() => handleOrderByChange(product.productId, 'count')}
+                    title="Order by count (e.g., 100 meatballs = 5 tubs of 20)"
+                  >by count</button>
+                )}
               </div>
 
               {/* Tub Size Toggle - shows when TUB is selected */}
@@ -405,6 +445,15 @@ export function NewOrderPage() {
                   )}
                 </div>
               )}
+
+              {/* Delete button */}
+              <button
+                onClick={() => handleRemoveItem(product.productId)}
+                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Remove item"
+              >
+                🗑️
+              </button>
             </div>
           );
         })}

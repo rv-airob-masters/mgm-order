@@ -96,8 +96,7 @@ export const CUSTOMER_RULES: CustomerRules[] = [
     ],
     packingRules: {
       traysPerBox: 20,
-      roundingRule: 'down',
-      roundToMultiple: 20, // Round trays to multiple of 20
+      roundingRule: 'none', // No rounding - just divide kg by tray weight
     },
   },
   {
