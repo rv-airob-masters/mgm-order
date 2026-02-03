@@ -224,7 +224,8 @@ export function EditOrderPage() {
 
     if (orderBy === 'trays') {
       trays = qty;
-      weightKg = trays * product.trayWeightKg;
+      // Round to 1 decimal place to avoid floating point precision issues (e.g., 6 * 0.4 = 2.4000000000000004)
+      weightKg = Math.round(trays * product.trayWeightKg * 10) / 10;
       boxes = skipBoxes ? 0 : Math.ceil(trays / product.traysPerBox);
     } else if (orderBy === 'count') {
       // Order by count/packets
@@ -233,14 +234,16 @@ export function EditOrderPage() {
         // Divide by countPerTub to get number of tubs needed
         const countPerTub = product.countPerTub || 20;
         tubs = Math.ceil(qty / countPerTub);
-        weightKg = tubs * product.tubWeightKg5; // Approximate weight
+        // Round to 1 decimal place to avoid floating point precision issues
+        weightKg = Math.round(tubs * product.tubWeightKg5 * 10) / 10;
         const tubsPerBox = rules.tubsPerBox5kg || 3;
         boxes = skipBoxes ? 0 : Math.ceil(tubs / tubsPerBox);
       } else {
         // Sausages/Burgers: count = number of trays/packets
         // e.g., 10 chicken sausage = 10 trays (each tray ~400g with 6 sausages)
         trays = qty;
-        weightKg = trays * product.trayWeightKg;
+        // Round to 1 decimal place to avoid floating point precision issues
+        weightKg = Math.round(trays * product.trayWeightKg * 10) / 10;
         const traysPerBox = rules.traysPerBox || product.traysPerBox;
         boxes = skipBoxes ? 0 : Math.ceil(trays / traysPerBox);
       }
@@ -274,7 +277,8 @@ export function EditOrderPage() {
         // Round DOWN to multiple
         trays = Math.ceil(qty / trayWeight);
         trays = Math.floor(trays / rules.roundToMultiple) * rules.roundToMultiple;
-        weightKg = trays * trayWeight;
+        // Round to 1 decimal place to avoid floating point precision issues
+        weightKg = Math.round(trays * trayWeight * 10) / 10;
       } else {
         // Default: round up
         trays = Math.ceil(qty / trayWeight);
