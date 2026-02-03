@@ -152,7 +152,7 @@ export function HomePage() {
               return (
                 <Link
                   key={order.id}
-                  to={`/orders/${order.id}/edit`}
+                  to={`/orders/edit/${order.id}`}
                   state={{ order, customer }}
                   className="block bg-white rounded-lg p-4 hover:shadow-md transition-shadow border border-amber-100"
                 >
