@@ -9,7 +9,7 @@
 
 export type PackType = 'tray' | 'tub';
 export type ProductType = 'sausage' | 'burger';
-export type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'in-progress' | 'completed';
 export type SyncStatus = 'pending' | 'synced' | 'conflict';
 export type UserRole = 'admin' | 'operator' | 'viewer';
 export type SpicePreference = 'mild' | 'normal';
@@ -62,6 +62,7 @@ export interface Customer {
   specialInstructions: string | null;
   defaultSausagePackType: PackType;
   spicePreference: SpicePreference;  // Customer's preferred spice level for sausages
+  noBoxes?: boolean;  // If true, orders for this customer default to no boxes
   isActive: boolean;
   syncStatus: SyncStatus;
   createdAt: Date;

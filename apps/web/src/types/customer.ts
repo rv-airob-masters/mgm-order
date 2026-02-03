@@ -13,6 +13,7 @@ export interface Customer {
   specialInstructions: string;
   defaultSausagePackType: PackType;
   spicePreference: SpicePreference;  // Customer's preferred spice level for sausages
+  noBoxes?: boolean;  // If true, orders for this customer default to no boxes
   isActive: boolean;
   syncStatus: SyncStatus;
   createdAt: Date;

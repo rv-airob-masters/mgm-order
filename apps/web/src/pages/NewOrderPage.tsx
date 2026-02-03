@@ -84,8 +84,8 @@ export function NewOrderPage() {
   const [savedOrderNumber, setSavedOrderNumber] = useState('');
   // Order date (default to today)
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
-  // No boxes toggle (customer can override)
-  const [noBoxes, setNoBoxes] = useState(customerRules?.packingRules.noBoxes || false);
+  // No boxes toggle (customer can override) - check customer's default first, then rules
+  const [noBoxes, setNoBoxes] = useState(customer?.noBoxes || customerRules?.packingRules.noBoxes || false);
 
   // All products to show (regular + adhoc)
   const activeProducts = useMemo(() => {
@@ -509,7 +509,7 @@ export function NewOrderPage() {
               customerId: customerId || '',
               customerName: customer?.name || 'Unknown Customer',
               orderDate: orderDate, // Use selected date
-              status: 'confirmed',
+              status: 'pending',
               totalBoxes: totals.boxes,
               totalWeight: totals.weight,
               totalTrays: totals.trays,

@@ -5,14 +5,12 @@ import type { OrderItem } from '../types/order';
 import { useAuth } from '../lib/auth';
 
 const statusColors: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  'in-progress': 'bg-purple-100 text-purple-700',
   completed: 'bg-green-100 text-green-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  draft: 'bg-amber-100 text-amber-700',
-  cancelled: 'bg-red-100 text-red-700',
-  in_progress: 'bg-purple-100 text-purple-700',
 };
 
-type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
+type OrderStatus = 'pending' | 'in-progress' | 'completed';
 type GroupBy = 'date' | 'status' | 'customer';
 
 export function OrdersPage() {
@@ -48,8 +46,10 @@ export function OrdersPage() {
     let newStatus: OrderStatus = selectedOrder.status;
     if (allCompleted) {
       newStatus = 'completed';
-    } else if (someCompleted && selectedOrder.status !== 'cancelled') {
-      newStatus = 'confirmed'; // Use confirmed as "in progress"
+    } else if (someCompleted) {
+      newStatus = 'in-progress';
+    } else {
+      newStatus = 'pending'; // No items completed = pending
     }
 
     const updatedOrder: Order = {
@@ -379,17 +379,28 @@ export function OrdersPage() {
             {/* Status Change */}
             <div className="mb-4">
               <h3 className="font-semibold text-gray-700 mb-3">Change Status</h3>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => handleStatusChange(selectedOrder.id, 'confirmed')}
+                  onClick={() => handleStatusChange(selectedOrder.id, 'pending')}
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    selectedOrder.status === 'confirmed'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    selectedOrder.status === 'pending'
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                   }`}
-                  disabled={selectedOrder.status === 'confirmed'}
+                  disabled={selectedOrder.status === 'pending'}
                 >
-                  ✓ Confirmed
+                  ⏳ Pending
+                </button>
+                <button
+                  onClick={() => handleStatusChange(selectedOrder.id, 'in-progress')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    selectedOrder.status === 'in-progress'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  }`}
+                  disabled={selectedOrder.status === 'in-progress'}
+                >
+                  🔄 In Progress
                 </button>
                 <button
                   onClick={() => handleStatusChange(selectedOrder.id, 'completed')}
@@ -401,28 +412,6 @@ export function OrdersPage() {
                   disabled={selectedOrder.status === 'completed'}
                 >
                   ✅ Completed
-                </button>
-                <button
-                  onClick={() => handleStatusChange(selectedOrder.id, 'draft')}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    selectedOrder.status === 'draft'
-                      ? 'bg-amber-500 text-white'
-                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                  }`}
-                  disabled={selectedOrder.status === 'draft'}
-                >
-                  📝 Draft
-                </button>
-                <button
-                  onClick={() => handleStatusChange(selectedOrder.id, 'cancelled')}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                    selectedOrder.status === 'cancelled'
-                      ? 'bg-red-500 text-white'
-                      : 'bg-red-100 text-red-700 hover:bg-red-200'
-                  }`}
-                  disabled={selectedOrder.status === 'cancelled'}
-                >
-                  ❌ Cancelled
                 </button>
               </div>
             </div>

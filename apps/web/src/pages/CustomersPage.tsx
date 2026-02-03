@@ -21,8 +21,10 @@ export function CustomersPage() {
   const navigate = useNavigate();
   const { isOwner } = useAuth();
   const [search, setSearch] = useState('');
-  const { customers, addCustomer, deleteCustomer } = useAppStore();
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useAppStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     contactPhone: '',
@@ -31,6 +33,7 @@ export function CustomersPage() {
     specialInstructions: '',
     defaultSausagePackType: 'tray' as PackType,
     spicePreference: 'normal' as SpicePreference,
+    noBoxes: false,
   });
 
   const filteredCustomers = customers.filter(c =>
@@ -53,6 +56,7 @@ export function CustomersPage() {
       specialInstructions: newCustomer.specialInstructions.trim() || null,
       defaultSausagePackType: newCustomer.defaultSausagePackType,
       spicePreference: newCustomer.spicePreference,
+      noBoxes: newCustomer.noBoxes,
       isActive: true,
       syncStatus: 'pending',
       createdAt: new Date(),
@@ -69,7 +73,25 @@ export function CustomersPage() {
       specialInstructions: '',
       defaultSausagePackType: 'tray',
       spicePreference: 'normal',
+      noBoxes: false,
     });
+  };
+
+  const handleEditClick = (e: React.MouseEvent, customer: Customer) => {
+    e.stopPropagation();
+    setEditingCustomer(customer);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingCustomer || !editingCustomer.name.trim()) return;
+
+    updateCustomer({
+      ...editingCustomer,
+      updatedAt: new Date(),
+    });
+    setShowEditModal(false);
+    setEditingCustomer(null);
   };
 
   return (
@@ -109,23 +131,32 @@ export function CustomersPage() {
                 {customer.name}
               </h3>
               {isOwner && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete customer "${customer.name}"? This cannot be undone.`)) {
-                      deleteCustomer(customer.id);
-                    }
-                  }}
-                  className="ml-2 text-red-600 hover:text-red-800 p-1"
-                  title="Delete customer (Owner only)"
-                >
-                  🗑️
-                </button>
+                <div className="flex gap-1 ml-2">
+                  <button
+                    onClick={(e) => handleEditClick(e, customer)}
+                    className="text-blue-600 hover:text-blue-800 p-1"
+                    title="Edit customer (Owner only)"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Delete customer "${customer.name}"? This cannot be undone.`)) {
+                        deleteCustomer(customer.id);
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-800 p-1"
+                    title="Delete customer (Owner only)"
+                  >
+                    🗑️
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* Pack type and spice preference badges */}
-            <div className="flex gap-2 mb-3">
+            {/* Pack type, spice preference, and noBoxes badges */}
+            <div className="flex flex-wrap gap-2 mb-3">
               <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                 customer.defaultSausagePackType === 'tray'
                   ? 'bg-green-200 text-green-800'
@@ -140,6 +171,11 @@ export function CustomersPage() {
               }`}>
                 {customer.spicePreference === 'mild' ? '🌿 Mild' : '🔥 Normal'}
               </span>
+              {customer.noBoxes && (
+                <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                  📦 No Boxes
+                </span>
+              )}
             </div>
 
             {/* Contact info */}
@@ -289,6 +325,36 @@ export function CustomersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  No Boxes (Pack without boxes)
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      !newCustomer.noBoxes
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setNewCustomer(prev => ({ ...prev, noBoxes: false }))}
+                  >
+                    📦 With Boxes
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      newCustomer.noBoxes
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setNewCustomer(prev => ({ ...prev, noBoxes: true }))}
+                  >
+                    🚫 No Boxes
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Special Instructions
                 </label>
                 <textarea
@@ -313,6 +379,164 @@ export function CustomersPage() {
                 disabled={!newCustomer.name.trim()}
               >
                 Add Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Customer Modal */}
+      {showEditModal && editingCustomer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Edit Customer</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Enter customer name"
+                  value={editingCustomer.name}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  className="input"
+                  placeholder="+61 400 000 000"
+                  value={editingCustomer.contactPhone || ''}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, contactPhone: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Default Pack Type
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      editingCustomer.defaultSausagePackType === 'tray'
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setEditingCustomer({ ...editingCustomer, defaultSausagePackType: 'tray' })}
+                  >
+                    Tray
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      editingCustomer.defaultSausagePackType === 'tub'
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setEditingCustomer({ ...editingCustomer, defaultSausagePackType: 'tub' })}
+                  >
+                    Tub
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Spice Preference 🌶️
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      editingCustomer.spicePreference === 'normal'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setEditingCustomer({ ...editingCustomer, spicePreference: 'normal' })}
+                  >
+                    🔥 Normal
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      editingCustomer.spicePreference === 'mild'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setEditingCustomer({ ...editingCustomer, spicePreference: 'mild' })}
+                  >
+                    🌿 Mild
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  No Boxes (Pack without boxes)
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      !editingCustomer.noBoxes
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setEditingCustomer({ ...editingCustomer, noBoxes: false })}
+                  >
+                    📦 With Boxes
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium ${
+                      editingCustomer.noBoxes
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                    onClick={() => setEditingCustomer({ ...editingCustomer, noBoxes: true })}
+                  >
+                    🚫 No Boxes
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Special Instructions
+                </label>
+                <textarea
+                  className="input min-h-[80px]"
+                  placeholder="Any special delivery or handling instructions..."
+                  value={editingCustomer.specialInstructions || ''}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, specialInstructions: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingCustomer(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="btn-primary flex-1"
+                disabled={!editingCustomer.name.trim()}
+              >
+                Save Changes
               </button>
             </div>
           </div>

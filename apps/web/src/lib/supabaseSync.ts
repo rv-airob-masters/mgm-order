@@ -16,7 +16,7 @@ interface DbOrder {
   customer_id: string;
   customer_name: string;
   order_date: string;
-  status: 'draft' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'in-progress' | 'completed';
   total_boxes: number;
   total_weight: number;
   total_trays: number;
@@ -195,6 +195,7 @@ interface DbCustomer {
   special_instructions: string | null;
   default_sausage_pack_type: 'tray' | 'tub';
   spice_preference: 'mild' | 'normal';
+  no_boxes?: boolean;
   is_active: boolean;
   sync_status: 'pending' | 'synced' | 'conflict';
   created_at?: string;
@@ -211,6 +212,7 @@ function toDbCustomer(customer: Customer): DbCustomer {
     special_instructions: customer.specialInstructions,
     default_sausage_pack_type: customer.defaultSausagePackType,
     spice_preference: customer.spicePreference,
+    no_boxes: customer.noBoxes,
     is_active: customer.isActive,
     sync_status: customer.syncStatus,
   };
@@ -226,6 +228,7 @@ function fromDbCustomer(db: DbCustomer): Customer {
     specialInstructions: db.special_instructions ?? '',
     defaultSausagePackType: db.default_sausage_pack_type ?? 'tray',
     spicePreference: db.spice_preference ?? 'normal',
+    noBoxes: db.no_boxes ?? false,
     isActive: db.is_active ?? true,
     syncStatus: db.sync_status ?? 'synced',
     createdAt: db.created_at ? new Date(db.created_at) : new Date(),

@@ -80,8 +80,8 @@ export function EditOrderPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   // Order date
   const [orderDate, setOrderDate] = useState(currentOrder?.orderDate || new Date().toISOString().split('T')[0]);
-  // No boxes toggle
-  const [noBoxes, setNoBoxes] = useState(customerRules?.packingRules.noBoxes || false);
+  // No boxes toggle - check customer's default first, then rules
+  const [noBoxes, setNoBoxes] = useState(customer?.noBoxes || customerRules?.packingRules.noBoxes || false);
 
   // Initialize state from existing order
   useEffect(() => {

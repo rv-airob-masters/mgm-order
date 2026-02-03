@@ -26,7 +26,7 @@ export interface Order {
   customerId: string;
   customerName: string;
   orderDate: string;
-  status: 'draft' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'in-progress' | 'completed';
   totalBoxes: number;
   totalWeight: number;
   totalTrays: number;

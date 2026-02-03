@@ -146,7 +146,7 @@ export const CUSTOMER_RULES: CustomerRules[] = [
   },
 ];
 
-type OrderStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
+type OrderStatus = 'pending' | 'in-progress' | 'completed';
 
 interface SyncState {
   isSyncing: boolean;

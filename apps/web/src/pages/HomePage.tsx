@@ -25,9 +25,16 @@ export function HomePage() {
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
 
+  // Get all pending orders (regardless of date) - sorted by order date
+  const pendingOrders = useMemo(() => {
+    return orders
+      .filter(o => o.status === 'pending')
+      .sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
+  }, [orders]);
+
   // Calculate today's order statistics
   const todayStats = useMemo(() => {
-    const todayOrders = orders.filter(o => o.orderDate === today && o.status !== 'cancelled');
+    const todayOrders = orders.filter(o => o.orderDate === today);
 
     return {
       orderCount: todayOrders.length,
@@ -37,14 +44,15 @@ export function HomePage() {
       totalBoxes: todayOrders.reduce((sum, o) => sum + o.totalBoxes, 0),
       // Labels = trays + tubs + boxes (1 label per each)
       totalLabels: todayOrders.reduce((sum, o) => sum + o.totalTrays + o.totalTubs + o.totalBoxes, 0),
-      confirmedCount: todayOrders.filter(o => o.status === 'confirmed').length,
+      pendingCount: todayOrders.filter(o => o.status === 'pending').length,
+      inProgressCount: todayOrders.filter(o => o.status === 'in-progress').length,
       completedCount: todayOrders.filter(o => o.status === 'completed').length,
     };
   }, [orders, today]);
 
   // Calculate breakdown by MEAT TYPE + CUSTOMER'S SPICE PREFERENCE for today
   const meatBreakdown = useMemo(() => {
-    const todayOrders = orders.filter(o => o.orderDate === today && o.status !== 'cancelled');
+    const todayOrders = orders.filter(o => o.orderDate === today);
 
     // Group by meatType + spicePreference (from customer) + category
     const breakdown: Record<string, {
@@ -131,6 +139,52 @@ export function HomePage() {
         </Link>
       </div>
 
+      {/* Pending Orders Section - All pending orders regardless of date */}
+      {pendingOrders.length > 0 && (
+        <div className="card bg-amber-50 border-2 border-amber-200 mb-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">⏳ Pending Orders ({pendingOrders.length})</h2>
+          <div className="space-y-3">
+            {pendingOrders.map(order => {
+              const customer = customers.find(c => c.id === order.customerId);
+              const isToday = order.orderDate === today;
+              const isPast = order.orderDate < today;
+              const isFuture = order.orderDate > today;
+              return (
+                <Link
+                  key={order.id}
+                  to={`/orders/${order.id}/edit`}
+                  state={{ order, customer }}
+                  className="block bg-white rounded-lg p-4 hover:shadow-md transition-shadow border border-amber-100"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-gray-800">{customer?.name || 'Unknown Customer'}</span>
+                        <span className="text-sm text-gray-500">#{order.orderNumber}</span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {order.items.length} item{order.items.length !== 1 ? 's' : ''} • {order.totalWeight.toFixed(1)}kg
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-medium ${isPast ? 'text-red-600' : isFuture ? 'text-blue-600' : 'text-green-600'}`}>
+                        {isPast && '⚠️ '}
+                        {order.orderDate}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {isToday && '📅 Today'}
+                        {isPast && '📅 Past'}
+                        {isFuture && '📅 Future'}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Today's Dashboard - NOW BELOW QUICK ACTIONS */}
       <div className="card bg-gradient-to-r from-primary-50 to-blue-50 border-2 border-primary-200 mb-6">
         <div className="flex justify-between items-center mb-4">
@@ -145,14 +199,18 @@ export function HomePage() {
         ) : (
           <>
             {/* Order count row */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-4 gap-4 mb-4">
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                 <div className="text-3xl font-bold text-gray-800">{todayStats.orderCount}</div>
                 <div className="text-sm text-gray-600">Total Orders</div>
               </div>
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                <div className="text-3xl font-bold text-blue-600">{todayStats.confirmedCount}</div>
-                <div className="text-sm text-gray-600">Confirmed</div>
+                <div className="text-3xl font-bold text-amber-600">{todayStats.pendingCount}</div>
+                <div className="text-sm text-gray-600">Pending</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                <div className="text-3xl font-bold text-purple-600">{todayStats.inProgressCount}</div>
+                <div className="text-sm text-gray-600">In Progress</div>
               </div>
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                 <div className="text-3xl font-bold text-green-600">{todayStats.completedCount}</div>
