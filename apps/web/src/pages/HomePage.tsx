@@ -25,10 +25,10 @@ export function HomePage() {
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
 
-  // Get all pending orders (regardless of date) - sorted by order date
+  // Get all non-completed orders (regardless of date) - sorted by order date
   const pendingOrders = useMemo(() => {
     return orders
-      .filter(o => o.status === 'pending')
+      .filter(o => o.status !== 'completed')
       .sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
   }, [orders]);
 
@@ -139,10 +139,10 @@ export function HomePage() {
         </Link>
       </div>
 
-      {/* Pending Orders Section - All pending orders regardless of date */}
+      {/* Pending Orders Section - All non-completed orders regardless of date */}
       {pendingOrders.length > 0 && (
         <div className="card bg-amber-50 border-2 border-amber-200 mb-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">⏳ Pending Orders ({pendingOrders.length})</h2>
+          <h2 className="text-lg font-bold text-gray-800 mb-4">⏳ Orders To Complete ({pendingOrders.length})</h2>
           <div className="space-y-3">
             {pendingOrders.map(order => {
               const customer = customers.find(c => c.id === order.customerId);
