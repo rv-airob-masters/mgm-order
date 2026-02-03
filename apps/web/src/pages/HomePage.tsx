@@ -1,7 +1,18 @@
-import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore, ALL_PRODUCTS, type MeatType, type SpiceType } from '../store';
+import { useAuth } from '../lib/auth';
 import type { SpicePreference } from '@mgm/shared';
+import type { Order, OrderItem } from '../types/order';
+
+type OrderStatus = 'pending' | 'in-progress' | 'completed';
+
+// Status colors for the modal
+const statusColors: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  'in-progress': 'bg-purple-100 text-purple-700',
+  completed: 'bg-green-100 text-green-700',
+};
 
 // Labels for meat types
 const meatLabels: Record<MeatType, string> = {
@@ -20,10 +31,73 @@ const spiceLabels: Record<SpiceType, string> = {
 };
 
 export function HomePage() {
-  const { orders, customers } = useAppStore();
+  const navigate = useNavigate();
+  const { isOwner } = useAuth();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const { orders, customers, updateOrder, updateOrderStatus, deleteOrder } = useAppStore();
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
+
+  // Delete order (owner only)
+  const handleDeleteOrder = (order: Order) => {
+    if (confirm(`Delete order #${order.orderNumber} for ${order.customerName}? This cannot be undone.`)) {
+      deleteOrder(order.id);
+      setSelectedOrder(null);
+    }
+  };
+
+  // Toggle item completion and auto-update order status
+  const handleToggleItemComplete = (itemIndex: number) => {
+    if (!selectedOrder) return;
+
+    const updatedItems: OrderItem[] = selectedOrder.items.map((item, idx) =>
+      idx === itemIndex ? { ...item, isCompleted: !item.isCompleted } : item
+    );
+
+    // Check if all items are completed
+    const allCompleted = updatedItems.every(item => item.isCompleted);
+    const someCompleted = updatedItems.some(item => item.isCompleted);
+
+    // Auto-update status based on completion
+    let newStatus: OrderStatus = selectedOrder.status;
+    if (allCompleted) {
+      newStatus = 'completed';
+    } else if (someCompleted) {
+      newStatus = 'in-progress';
+    } else {
+      newStatus = 'pending'; // No items completed = pending
+    }
+
+    const updatedOrder: Order = {
+      ...selectedOrder,
+      items: updatedItems,
+      status: newStatus,
+    };
+
+    updateOrder(updatedOrder);
+    setSelectedOrder(updatedOrder);
+  };
+
+  // Get completion progress
+  const getCompletionProgress = (order: Order) => {
+    const completed = order.items.filter(item => item.isCompleted).length;
+    return { completed, total: order.items.length };
+  };
+
+  // Get label count (trays + tubs + boxes)
+  const getLabelCount = (order: Order) => {
+    return order.totalTrays + order.totalTubs + order.totalBoxes;
+  };
+
+  // Handle status change
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
+    updateOrderStatus(orderId, newStatus);
+    // Update local selected order state to reflect the change
+    if (selectedOrder && selectedOrder.id === orderId) {
+      setSelectedOrder({ ...selectedOrder, status: newStatus });
+    }
+  };
 
   // Get all non-completed orders (regardless of date) - sorted by order date
   const pendingOrders = useMemo(() => {
@@ -150,17 +224,19 @@ export function HomePage() {
               const isPast = order.orderDate < today;
               const isFuture = order.orderDate > today;
               return (
-                <Link
+                <div
                   key={order.id}
-                  to={`/orders/edit/${order.id}`}
-                  state={{ order, customer }}
-                  className="block bg-white rounded-lg p-4 hover:shadow-md transition-shadow border border-amber-100"
+                  onClick={() => setSelectedOrder(order)}
+                  className="block bg-white rounded-lg p-4 hover:shadow-md transition-shadow border border-amber-100 cursor-pointer"
                 >
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-bold text-gray-800">{customer?.name || 'Unknown Customer'}</span>
                         <span className="text-sm text-gray-500">#{order.orderNumber}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
+                          {order.status.toUpperCase()}
+                        </span>
                       </div>
                       <div className="text-sm text-gray-600">
                         {order.items.length} item{order.items.length !== 1 ? 's' : ''} • {order.totalWeight.toFixed(1)}kg
@@ -178,7 +254,7 @@ export function HomePage() {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -300,6 +376,169 @@ export function HomePage() {
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Order Details Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">{selectedOrder.customerName}</h2>
+                <p className="text-gray-500 text-sm">{selectedOrder.orderNumber}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[selectedOrder.status]}`}>
+                {selectedOrder.status.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="text-sm text-gray-500 mb-4">
+              📅 Order Date: {selectedOrder.orderDate}
+            </div>
+
+            {/* Order Items with Toggle */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-gray-700">Order Items</h3>
+                <span className="text-sm text-gray-500">
+                  {getCompletionProgress(selectedOrder).completed}/{getCompletionProgress(selectedOrder).total} done
+                </span>
+              </div>
+              <div className="space-y-3">
+                {selectedOrder.items.map((item, index) => (
+                  <div
+                    key={index}
+                    className={`rounded-lg p-3 border-2 transition-all cursor-pointer ${
+                      item.isCompleted
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-white border-gray-200 hover:border-primary-300'
+                    }`}
+                    onClick={() => handleToggleItemComplete(index)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          item.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200'
+                        }`}>
+                          {item.isCompleted ? '✓' : ''}
+                        </div>
+                        <div>
+                          <div className={`font-medium ${item.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                            {item.productName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {item.quantityKg}kg • {item.trays > 0 ? `${item.trays} trays` : ''}{item.tubs > 0 ? ` ${item.tubs} tubs` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right text-sm">
+                        <div className="text-gray-600">{item.boxes} boxes</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Order Summary */}
+            <div className="bg-primary-50 rounded-lg p-4 mb-4">
+              <h3 className="font-semibold text-gray-700 mb-3">Order Summary</h3>
+              <div className="grid grid-cols-5 gap-3 text-center">
+                <div>
+                  <div className="text-xl font-bold text-gray-800">{selectedOrder.totalWeight}</div>
+                  <div className="text-xs text-gray-600">kg</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-800">{selectedOrder.totalTrays}</div>
+                  <div className="text-xs text-gray-600">Trays</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-gray-800">{selectedOrder.totalTubs}</div>
+                  <div className="text-xs text-gray-600">Tubs</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-primary-600">{selectedOrder.totalBoxes}</div>
+                  <div className="text-xs text-gray-600">Boxes</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-purple-600">{getLabelCount(selectedOrder)}</div>
+                  <div className="text-xs text-gray-600">Labels</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Change */}
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-700 mb-3">Change Status</h3>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => handleStatusChange(selectedOrder.id, 'pending')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    selectedOrder.status === 'pending'
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  }`}
+                  disabled={selectedOrder.status === 'pending'}
+                >
+                  ⏳ Pending
+                </button>
+                <button
+                  onClick={() => handleStatusChange(selectedOrder.id, 'in-progress')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    selectedOrder.status === 'in-progress'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  }`}
+                  disabled={selectedOrder.status === 'in-progress'}
+                >
+                  🔄 In Progress
+                </button>
+                <button
+                  onClick={() => handleStatusChange(selectedOrder.id, 'completed')}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    selectedOrder.status === 'completed'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-green-100 text-green-700 hover:bg-green-200'
+                  }`}
+                  disabled={selectedOrder.status === 'completed'}
+                >
+                  ✅ Completed
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              {isOwner && (
+                <button
+                  onClick={() => handleDeleteOrder(selectedOrder)}
+                  className="py-2 px-4 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  title="Delete order (Owner only)"
+                >
+                  🗑️
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  // Find the customer to pass state
+                  const customer = customers.find(c => c.id === selectedOrder.customerId);
+                  setSelectedOrder(null);
+                  navigate(`/orders/edit/${selectedOrder.id}`, {
+                    state: { customer, order: selectedOrder }
+                  });
+                }}
+                className="btn-secondary flex-1"
+              >
+                ✏️ Edit Order
+              </button>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="btn-primary flex-1"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
