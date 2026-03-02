@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS customers (
     address TEXT,
     special_instructions TEXT,
     default_sausage_pack_type TEXT DEFAULT 'tray' CHECK (default_sausage_pack_type IN ('tray', 'tub')),
+    spice_preference TEXT DEFAULT 'normal' CHECK (spice_preference IN ('mild', 'normal')),
+    no_boxes BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     sync_status TEXT DEFAULT 'synced' CHECK (sync_status IN ('pending', 'synced', 'conflict')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -47,11 +49,11 @@ GRANT ALL ON customers TO anon;
 GRANT ALL ON customers TO authenticated;
 
 -- Insert default customers (the 4 main customers)
-INSERT INTO customers (id, name, contact_phone, contact_email, address, special_instructions, default_sausage_pack_type, is_active, sync_status)
-VALUES 
-    ('haji-baba', 'Haji Baba', NULL, NULL, NULL, 'All sausages in 400g trays, 20 trays per box. Burgers: 6x113g per tray.', 'tray', true, 'synced'),
-    ('lmc', 'LMC', NULL, NULL, NULL, 'Veal sausages in 5kg or 2kg tubs (3 per box for 5kg, 6 per box for 2kg). Meatballs by count.', 'tub', true, 'synced'),
-    ('halalnivore', 'Halalnivore', NULL, NULL, NULL, 'All sausages in 5kg tubs, 3 per box. Round to nearest 4 tubs. Pack of 4 for extras.', 'tub', true, 'synced'),
-    ('saffron', 'Saffron', NULL, NULL, NULL, 'Orders by trays. NO BOXES - trays only.', 'tray', true, 'synced')
+INSERT INTO customers (id, name, contact_phone, contact_email, address, special_instructions, default_sausage_pack_type, spice_preference, no_boxes, is_active, sync_status)
+VALUES
+    ('haji-baba', 'Haji Baba', NULL, NULL, NULL, 'All sausages in 400g trays, 20 trays per box. Burgers: 6x113g per tray.', 'tray', 'normal', false, true, 'synced'),
+    ('lmc', 'LMC', NULL, NULL, NULL, 'Veal sausages in 5kg or 2kg tubs (3 per box for 5kg, 6 per box for 2kg). Meatballs by count.', 'tub', 'mild', false, true, 'synced'),
+    ('halalnivore', 'Halalnivore', NULL, NULL, NULL, 'All sausages in 5kg tubs, 3 per box. Round to nearest 4 tubs. Pack of 4 for extras.', 'tub', 'normal', false, true, 'synced'),
+    ('saffron', 'Saffron', NULL, NULL, NULL, 'Orders by trays. NO BOXES - trays only.', 'tray', 'normal', true, true, 'synced')
 ON CONFLICT (id) DO NOTHING;
 

@@ -14,7 +14,7 @@ CREATE TABLE orders (
     customer_id TEXT NOT NULL,
     customer_name TEXT NOT NULL,
     order_date TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'confirmed', 'completed', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'completed', 'draft', 'confirmed', 'cancelled')),
     total_boxes INTEGER DEFAULT 0,
     total_weight DECIMAL(10,2) DEFAULT 0,
     total_trays INTEGER DEFAULT 0,
